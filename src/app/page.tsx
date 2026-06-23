@@ -1,7 +1,23 @@
 import { auth, signIn, signOut } from "@/auth";
+import AddTransactionForm from "@/components/AddTransactionForm";
+import TransactionList from "@/components/TransactionList";
+import { listTransactions } from "@/lib/actions/transactions";
 
 export default async function Home() {
   const session = await auth();
+
+  // ログイン済みの場合のみ取引を取得
+  const transactions = session?.user ? await listTransactions() : [];
+
+  // 今月の集計
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthlyIncome = transactions
+    .filter((t) => t.type === "income" && t.date.startsWith(thisMonth))
+    .reduce((sum, t) => sum + t.amount, 0);
+  const monthlyExpense = transactions
+    .filter((t) => t.type === "expense" && t.date.startsWith(thisMonth))
+    .reduce((sum, t) => sum + t.amount, 0);
 
   return (
     <main className="min-h-screen bg-white text-gray-900 p-8">
@@ -52,31 +68,37 @@ export default async function Home() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div className="border rounded-lg p-4">
-              <p className="text-sm text-gray-500">今月の売上</p>
-              <p className="text-2xl font-semibold mt-1">¥0</p>
+              <p className="text-sm text-gray-500">今月の収入</p>
+              <p className="text-2xl font-semibold mt-1">
+                ¥{monthlyIncome.toLocaleString()}
+              </p>
             </div>
             <div className="border rounded-lg p-4">
-              <p className="text-sm text-gray-500">今月の経費</p>
-              <p className="text-2xl font-semibold mt-1">¥0</p>
+              <p className="text-sm text-gray-500">今月の支出</p>
+              <p className="text-2xl font-semibold mt-1">
+                ¥{monthlyExpense.toLocaleString()}
+              </p>
             </div>
             <div className="border rounded-lg p-4">
-              <p className="text-sm text-gray-500">売掛金残高</p>
-              <p className="text-2xl font-semibold mt-1">¥0</p>
+              <p className="text-sm text-gray-500">今月の差引</p>
+              <p className="text-2xl font-semibold mt-1">
+                ¥{(monthlyIncome - monthlyExpense).toLocaleString()}
+              </p>
             </div>
             <div className="border rounded-lg p-4">
-              <p className="text-sm text-gray-500">年間税額(見込)</p>
-              <p className="text-2xl font-semibold mt-1">¥0</p>
+              <p className="text-sm text-gray-500">登録件数</p>
+              <p className="text-2xl font-semibold mt-1">
+                {transactions.length}件
+              </p>
             </div>
           </div>
 
-          <div className="border rounded-lg p-6 bg-green-50 border-green-200">
-            <p className="text-sm font-medium text-green-800">
-              ✓ ログイン成功
-            </p>
-            <p className="text-xs text-green-700 mt-1">
-              Google Drive と Gmail へのアクセス権限を取得しました。
-            </p>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">取引一覧</h2>
+            <AddTransactionForm />
           </div>
+
+          <TransactionList transactions={transactions} />
         </>
       ) : (
         <div className="border rounded-lg p-12 text-center bg-gray-50">

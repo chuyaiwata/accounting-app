@@ -8,15 +8,19 @@ import {
   ensureAppFolder,
   appendJsonl,
   readJsonl,
+  uploadTextFile,
 } from "@/lib/drive/client";
-import type { Transaction } from "@/lib/types";
+import type {
+  Transaction,
+  TransactionCategory,
+  TransactionType,
+  TaxDeductionType,
+  SettlementStatus,
+} from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
 const TRANSACTIONS_FILE = "transactions.jsonl";
 
-/**
- * ランダムなIDを生成(UUID風)
- */
 function generateId(): string {
   return (
     Date.now().toString(36) +
@@ -25,9 +29,6 @@ function generateId(): string {
   );
 }
 
-/**
- * 認証チェック + アクセストークン取得
- */
 async function requireAccessToken(): Promise<string> {
   const session = await auth();
   if (!session?.accessToken) {
@@ -49,10 +50,17 @@ export async function addTransaction(formData: FormData): Promise<{
     const date = formData.get("date") as string;
     const description = formData.get("description") as string;
     const amountStr = formData.get("amount") as string;
-    const type = formData.get("type") as "income" | "expense";
+    const type = formData.get("type") as TransactionType;
+    const category = formData.get("category") as TransactionCategory;
+    const taxDeductionType = formData.get("taxDeductionType") as
+      | TaxDeductionType
+      | null;
+    const settlementStatus = (formData.get("settlementStatus") as SettlementStatus) || "settled";
+    const expectedSettlementDate = formData.get("expectedSettlementDate") as string;
+    const paymentMethod = formData.get("paymentMethod") as string;
     const note = formData.get("note") as string;
 
-    if (!date || !description || !amountStr || !type) {
+    if (!date || !description || !amountStr || !type || !category) {
       return { ok: false, error: "必須項目が入力されていません" };
     }
 
@@ -67,10 +75,17 @@ export async function addTransaction(formData: FormData): Promise<{
       date,
       description,
       amount,
+      category,
       type,
       source: "manual",
       status: "confirmed",
+      taxDeductionType: taxDeductionType || undefined,
+      settlementStatus,
+      expectedSettlementDate: expectedSettlementDate || undefined,
+      actualSettlementDate:
+        settlementStatus === "settled" ? date : undefined,
       tagIds: [],
+      paymentMethod: paymentMethod || undefined,
       note: note || undefined,
       createdAt: now,
       updatedAt: now,
@@ -89,7 +104,7 @@ export async function addTransaction(formData: FormData): Promise<{
 }
 
 /**
- * 取引を全件取得
+ * 取引を全件取得(日付の降順)
  */
 export async function listTransactions(): Promise<Transaction[]> {
   try {
@@ -100,10 +115,90 @@ export async function listTransactions(): Promise<Transaction[]> {
       folderId,
       TRANSACTIONS_FILE
     );
-    // 日付の降順(新しい順)で返す
     return items.sort((a, b) => (a.date < b.date ? 1 : -1));
   } catch (e) {
     console.error("listTransactions error:", e);
     return [];
   }
 }
+
+/**
+ * 取引の決済を完了にする(未払/未入金 → 支払済み/入金済み)
+ */
+export async function settleTransaction(
+  transactionId: ID,
+  actualDate: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const accessToken = await requireAccessToken();
+    const folderId = await ensureAppFolder(accessToken);
+
+    const items = await readJsonl<Transaction>(
+      accessToken,
+      folderId,
+      TRANSACTIONS_FILE
+    );
+
+    const idx = items.findIndex((t) => t.id === transactionId);
+    if (idx === -1) {
+      return { ok: false, error: "取引が見つかりません" };
+    }
+
+    items[idx] = {
+      ...items[idx],
+      settlementStatus: "settled",
+      actualSettlementDate: actualDate,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const newContent =
+      items.map((t) => JSON.stringify(t)).join("\n") + "\n";
+    await uploadTextFile(accessToken, folderId, TRANSACTIONS_FILE, newContent);
+
+    revalidatePath("/");
+    return { ok: true };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "更新に失敗しました";
+    console.error("settleTransaction error:", e);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * 取引を削除
+ */
+export async function deleteTransaction(
+  transactionId: ID
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const accessToken = await requireAccessToken();
+    const folderId = await ensureAppFolder(accessToken);
+
+    const items = await readJsonl<Transaction>(
+      accessToken,
+      folderId,
+      TRANSACTIONS_FILE
+    );
+
+    const filtered = items.filter((t) => t.id !== transactionId);
+    if (filtered.length === items.length) {
+      return { ok: false, error: "取引が見つかりません" };
+    }
+
+    const newContent =
+      filtered.length === 0
+        ? ""
+        : filtered.map((t) => JSON.stringify(t)).join("\n") + "\n";
+    await uploadTextFile(accessToken, folderId, TRANSACTIONS_FILE, newContent);
+
+    revalidatePath("/");
+    return { ok: true };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "削除に失敗しました";
+    console.error("deleteTransaction error:", e);
+    return { ok: false, error: message };
+  }
+}
+
+// 型インポートのヘルパー(internal)
+type ID = string;

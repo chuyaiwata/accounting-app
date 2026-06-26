@@ -212,9 +212,10 @@ export default async function Home() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex flex-col md:flex-row min-h-screen">
+      {/* PC用サイドバー */}
       <aside
-        className="w-60 flex-shrink-0 flex flex-col py-6 px-3"
+        className="hidden md:flex w-60 flex-shrink-0 flex-col py-6 px-3"
         style={{
           background: "var(--bg-elevated)",
           borderRight: "1px solid var(--border-subtle)",
@@ -265,19 +266,50 @@ export default async function Home() {
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0">
-        <div className="px-10 py-8 max-w-[1400px]">
-          <div className="flex items-end justify-between mb-10">
+      {/* モバイル用ヘッダー */}
+      <header
+        className="md:hidden sticky top-0 z-20 flex items-center justify-between px-4 py-3"
+        style={{
+          background: "var(--bg-base)",
+          borderBottom: "1px solid var(--border-subtle)",
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: "var(--accent-muted)" }}
+          >
+            <Wallet className="w-3.5 h-3.5 text-[var(--accent)]" />
+          </div>
+          <p className="text-sm font-semibold">Accounting</p>
+        </div>
+        <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
+          <button
+            type="submit"
+            className="text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] px-2 py-1"
+          >
+            ログアウト
+          </button>
+        </form>
+      </header>
+
+      <main className="flex-1 min-w-0 pb-20 md:pb-0">
+        <div className="px-4 md:px-10 py-6 md:py-8 max-w-[1400px]">
+          {/* ヘッダー */}
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6 md:mb-10">
             <div>
-              <p className="text-xs text-[var(--text-tertiary)] mb-2 tracking-wide uppercase">
+              <p className="text-[10px] md:text-xs text-[var(--text-tertiary)] mb-1 md:mb-2 tracking-wide uppercase">
                 {now.getFullYear()}年 {now.getMonth() + 1}月
               </p>
-              <h1 className="text-[28px] font-semibold tracking-tight leading-none">ダッシュボード</h1>
+              <h1 className="text-[22px] md:text-[28px] font-semibold tracking-tight leading-none">
+                ダッシュボード
+              </h1>
             </div>
             <AddTransactionForm />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-10">
+          {/* メトリクスカード(モバイル:2列、PC:4列) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-6 md:mb-10">
             <MetricCard
               label="今月の売上"
               value={monthlyIncome}
@@ -308,7 +340,8 @@ export default async function Home() {
 
           <DashboardCharts monthlyData={monthlyData} incomeByTag={incomeByTagData} />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-10 mt-10">
+          {/* キャッシュフロー(モバイル:1列、PC:3列) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3 mb-6 md:mb-10 mt-6 md:mt-10">
             <CashFlowCard
               label="未払い"
               value={unpaidAmount}
@@ -337,20 +370,20 @@ export default async function Home() {
           />
 
           {totalTaxDeductible > 0 && (
-            <div className="mb-10">
+            <div className="mb-6 md:mb-10">
               <div className="flex items-end justify-between mb-3">
                 <div>
                   <p className="text-[10px] text-[var(--text-tertiary)] tracking-wide uppercase mb-1">
                     {thisYear}年
                   </p>
-                  <h2 className="text-base font-semibold">所得控除の内訳</h2>
+                  <h2 className="text-sm md:text-base font-semibold">所得控除の内訳</h2>
                 </div>
-                <p className="tabular text-xl font-semibold">
+                <p className="tabular text-base md:text-xl font-semibold">
                   ¥{totalTaxDeductible.toLocaleString()}
                 </p>
               </div>
               <div
-                className="rounded-xl p-4"
+                className="rounded-xl p-3 md:p-4"
                 style={{
                   background: "var(--bg-elevated)",
                   border: "1px solid var(--border-subtle)",
@@ -376,18 +409,32 @@ export default async function Home() {
             </div>
           )}
 
-          <div className="flex items-end justify-between mb-4">
+          <div className="flex items-end justify-between mb-3 md:mb-4">
             <div>
               <p className="text-[10px] text-[var(--text-tertiary)] tracking-wide uppercase mb-1">
                 最新
               </p>
-              <h2 className="text-base font-semibold">取引一覧</h2>
+              <h2 className="text-sm md:text-base font-semibold">取引一覧</h2>
             </div>
             <p className="text-xs text-[var(--text-tertiary)]">全 {transactions.length} 件</p>
           </div>
           <TransactionList transactions={transactions} />
         </div>
       </main>
+
+      {/* モバイル用ボトムナビゲーション */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around py-2 px-2"
+        style={{
+          background: "var(--bg-elevated)",
+          borderTop: "1px solid var(--border-subtle)",
+        }}
+      >
+        <BottomNavItem icon={<LayoutDashboard className="w-5 h-5" />} label="ホーム" active />
+        <BottomNavItem icon={<Receipt className="w-5 h-5" />} label="取引" />
+        <BottomNavItem icon={<FileText className="w-5 h-5" />} label="請求書" />
+        <BottomNavItem icon={<Settings className="w-5 h-5" />} label="設定" />
+      </nav>
     </div>
   );
 }
@@ -404,6 +451,20 @@ function NavItem({ icon, label, active = false }: { icon: React.ReactNode; label
     >
       {icon}
       <span>{label}</span>
+    </button>
+  );
+}
+
+function BottomNavItem({ icon, label, active = false }: { icon: React.ReactNode; label: string; active?: boolean }) {
+  return (
+    <button
+      className="flex flex-col items-center justify-center gap-1 px-3 py-1.5 min-w-[64px] rounded-md transition"
+      style={{
+        color: active ? "var(--accent)" : "var(--text-tertiary)",
+      }}
+    >
+      {icon}
+      <span className="text-[10px] font-medium">{label}</span>
     </button>
   );
 }
@@ -438,25 +499,25 @@ function MetricCard({
 
   return (
     <div
-      className="rounded-xl p-5"
+      className="rounded-xl p-3 md:p-5"
       style={{
         background: "var(--bg-elevated)",
         border: "1px solid var(--border-subtle)",
         boxShadow: "var(--shadow-sm)",
       }}
     >
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-xs text-[var(--text-secondary)] font-medium">{label}</p>
+      <div className="flex items-center justify-between mb-2 md:mb-4">
+        <p className="text-[10px] md:text-xs text-[var(--text-secondary)] font-medium">{label}</p>
         <div style={{ color: "var(--text-tertiary)" }}>{icon}</div>
       </div>
       <p
-        className="metric-value text-[28px] leading-none mb-3"
+        className="metric-value text-[20px] md:text-[28px] leading-none mb-2 md:mb-3"
         style={{ color: valueColor }}
       >
         {formatted}
       </p>
       {change !== null ? (
-        <div className="flex items-center gap-1 text-[11px]">
+        <div className="flex items-center gap-1 text-[10px] md:text-[11px]">
           <span
             className="flex items-center gap-0.5 font-medium"
             style={{
@@ -470,10 +531,10 @@ function MetricCard({
             )}
             {Math.abs(change).toFixed(1)}%
           </span>
-          <span className="text-[var(--text-tertiary)]">前月比</span>
+          <span className="text-[var(--text-tertiary)]">前月</span>
         </div>
       ) : (
-        <p className="text-[11px] text-[var(--text-tertiary)]">—</p>
+        <p className="text-[10px] md:text-[11px] text-[var(--text-tertiary)]">—</p>
       )}
     </div>
   );
@@ -492,7 +553,7 @@ function CashFlowCard({
 }) {
   return (
     <div
-      className="rounded-xl p-5 relative overflow-hidden"
+      className="rounded-xl p-4 md:p-5 relative overflow-hidden"
       style={{
         background: "var(--bg-elevated)",
         border: "1px solid var(--border-default)",
@@ -504,7 +565,7 @@ function CashFlowCard({
         style={{ background: "var(--border-strong)" }}
       />
       <div className="pl-2">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3 md:mb-4">
           <div className="flex items-center gap-2">
             <div style={{ color: "var(--text-tertiary)" }}>{icon}</div>
             <p className="text-xs font-medium text-[var(--text-secondary)]">
@@ -514,7 +575,7 @@ function CashFlowCard({
           <span className="text-[10px] text-[var(--text-tertiary)]">{countLabel}</span>
         </div>
         <p
-          className="metric-value text-[28px] leading-none"
+          className="metric-value text-[24px] md:text-[28px] leading-none"
           style={{ color: "var(--text-primary)" }}
         >
           ¥{value.toLocaleString()}

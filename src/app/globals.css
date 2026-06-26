@@ -124,7 +124,11 @@ textarea,
 select {
   background: var(--bg-overlay);
   border: 1px solid var(--border-default);
+  border-radius: 8px;
   color: var(--text-primary);
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
   border-radius: var(--radius-md);
   transition: border-color 0.15s ease, background 0.15s ease;
 }

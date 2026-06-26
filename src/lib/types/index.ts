@@ -159,6 +159,9 @@ export interface Transaction {
   expectedSettlementDate?: DateString;
   actualSettlementDate?: DateString;
 
+  // 勘定科目(青色申告の損益計算書集計用)
+  accountCode?: string;
+
   // 関連
   counterpartyId?: ID;
   receiptId?: ID;

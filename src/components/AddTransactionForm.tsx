@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { addTransaction } from "@/lib/actions/transactions";
 import type {
   TransactionCategory,
@@ -8,7 +8,9 @@ import type {
   TaxDeductionType,
   SettlementStatus,
 } from "@/lib/types";
-import { Plus, X } from "lucide-react";
+import { parseReceiptWithClaude } from "@/lib/actions/parseReceiptWithClaude";
+import { EXPENSE_ACCOUNTS, INCOME_ACCOUNTS } from "@/lib/data/accountOptions";
+import { Plus, X, Camera, Loader2 } from "lucide-react";
 
 interface CategoryOption {
   value: TransactionCategory;
@@ -36,7 +38,6 @@ const TAX_DEDUCTION_OPTIONS: { value: TaxDeductionType; label: string }[] = [
   { value: "other", label: "その他" },
 ];
 
-// 事業タグ(将来は設定画面で編集可能に)
 const TAGS = [
   { id: "pbs4", name: "PBS4", color: "#4f8bff" },
   { id: "upcycle", name: "アップサイクル", color: "#34d399" },
@@ -54,6 +55,22 @@ export default function AddTransactionForm() {
   const [settlementStatus, setSettlementStatus] = useState<SettlementStatus>("settled");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
+  // OCR関連state
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrPreview, setOcrPreview] = useState<string | null>(null);
+  const [ocrResult, setOcrResult] = useState<{
+    amount: string;
+    date: string;
+    description: string;
+    accountCode: string;
+  } | null>(null);
+  const [accountCode, setAccountCode] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // フォームのkey(OCR結果を反映させるためにフォームを再マウントする)
+  const [formKey, setFormKey] = useState(0);
+
   const today = new Date().toISOString().slice(0, 10);
 
   function resetForm() {
@@ -62,6 +79,11 @@ export default function AddTransactionForm() {
     setSettlementStatus("settled");
     setSelectedTags([]);
     setError(null);
+    setOcrPreview(null);
+    setOcrResult(null);
+    setOcrProgress(0);
+    setAccountCode("");
+    setFormKey((k) => k + 1);
   }
 
   function toggleTag(tagId: string) {
@@ -70,9 +92,178 @@ export default function AddTransactionForm() {
     );
   }
 
-  function handleSubmit(formData: FormData) {
+  async function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const original = e.target.files?.[0];
+    if (!original) return;
+
     setError(null);
-    // タグをFormDataに追加
+    setOcrLoading(true);
+    setOcrProgress(0);
+    setOcrResult(null);
+
+    let file: Blob = original;
+
+    // HEIC/HEIF → JPEG 変換(iPhoneのデフォルト形式対応)
+    const isHeic =
+      /\.(heic|heif)$/i.test(original.name) ||
+      original.type === "image/heic" ||
+      original.type === "image/heif";
+
+    if (isHeic) {
+      try {
+        setOcrProgress(10);
+        const heic2any = (await import("heic2any")).default;
+        const converted = await heic2any({
+          blob: original,
+          toType: "image/jpeg",
+          quality: 0.85,
+        });
+        file = Array.isArray(converted) ? converted[0] : converted;
+      } catch (err) {
+        console.error("HEIC conversion error:", err);
+        setError("HEIC画像の変換に失敗しました。");
+        setOcrLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+    }
+
+    // プレビュー表示
+    const reader = new FileReader();
+    reader.onload = (ev) => setOcrPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    setOcrProgress(30);
+
+    // 画像が大きすぎる場合は縮小(Claude APIの上限考慮)
+    let uploadFile: Blob = file;
+    try {
+      uploadFile = await resizeIfNeeded(file);
+    } catch (err) {
+      console.warn("Resize failed, using original:", err);
+    }
+
+    setOcrProgress(50);
+
+    // Blob → base64
+    const base64 = await blobToBase64(uploadFile);
+    const mediaType = "image/jpeg";
+
+    setOcrProgress(70);
+
+    try {
+      const result = await parseReceiptWithClaude(base64, mediaType);
+
+      if (!result.ok) {
+        setError(result.error || "レシートの読み取りに失敗しました");
+        setOcrLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
+      console.log("Claude OCR result:", result);
+
+      setOcrProgress(100);
+
+      // フォームに反映
+      setOcrResult({
+        amount: result.amount?.toString() || "",
+        date: result.date || today,
+        description:
+          result.description ||
+          result.storeName ||
+          "",
+        accountCode: result.accountCode || "",
+      });
+      if (result.accountCode) {
+        setAccountCode(result.accountCode);
+      }
+
+      // タグ自動付与
+      if (result.tagIds.length > 0) {
+        setSelectedTags((prev) => {
+          const merged = new Set([...prev, ...result.tagIds]);
+          return Array.from(merged);
+        });
+      }
+
+      // カテゴリ確定(支出)
+      setCategory("business");
+      setType("expense");
+
+      // フォーム再マウントでdefaultValue更新
+      setFormKey((k) => k + 1);
+    } catch (err) {
+      console.error("OCR error:", err);
+      setError(
+        "レシートの読み取りに失敗しました。手動で入力してください。"
+      );
+    } finally {
+      setOcrLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  // ヘルパー: Blob → base64文字列(プレフィックスなし)
+  async function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const base64 = result.split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // ヘルパー: 画像が大きすぎる場合は縮小
+  async function resizeIfNeeded(blob: Blob, maxDim = 1600): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+
+        let { width, height } = img;
+        if (width <= maxDim && height <= maxDim) {
+          resolve(blob);
+          return;
+        }
+
+        const ratio = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas context unavailable"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (out) => {
+            if (out) resolve(out);
+            else reject(new Error("Canvas toBlob failed"));
+          },
+          "image/jpeg",
+          0.9
+        );
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Image load failed"));
+      };
+      img.src = url;
+    });
+  }
+
+    function handleSubmit(formData: FormData) {
+    setError(null);
     selectedTags.forEach((tagId) => formData.append("tagIds", tagId));
     startTransition(async () => {
       const result = await addTransaction(formData);
@@ -147,7 +338,90 @@ export default function AddTransactionForm() {
           </button>
         </div>
 
-        <form action={handleSubmit} className="px-6 py-5 space-y-5">
+        {/* レシート読取ボタン */}
+        <div className="px-6 pt-5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
+            onChange={handleReceiptUpload}
+            className="hidden"
+            id="receipt-upload"
+          />
+          {!ocrLoading && !ocrPreview && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition"
+              style={{
+                background: "var(--bg-overlay)",
+                color: "var(--text-primary)",
+                border: "1px dashed var(--border-default)",
+              }}
+            >
+              <Camera className="w-4 h-4" />
+              レシートを撮影 / 選択
+            </button>
+          )}
+          {ocrLoading && (
+            <div
+              className="rounded-lg px-4 py-3 text-sm"
+              style={{
+                background: "var(--bg-overlay)",
+                border: "1px solid var(--border-default)",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--accent)" }} />
+                <span className="text-[var(--text-secondary)]">
+                  読み取り中... {ocrProgress}%
+                </span>
+              </div>
+              <div
+                className="h-1 rounded-full overflow-hidden"
+                style={{ background: "var(--bg-base)" }}
+              >
+                <div
+                  className="h-full transition-all"
+                  style={{ width: `${ocrProgress}%`, background: "var(--accent)" }}
+                />
+              </div>
+            </div>
+          )}
+          {ocrPreview && !ocrLoading && (
+            <div className="flex gap-3 items-start">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ocrPreview}
+                alt="レシート"
+                className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                style={{ border: "1px solid var(--border-default)" }}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-[var(--text-secondary)] mb-2">
+                  {ocrResult ? "読取完了。下のフォームを確認してください" : "読み取れませんでした"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOcrPreview(null);
+                    setOcrResult(null);
+                  }}
+                  className="text-xs px-2 py-1 rounded transition"
+                  style={{
+                    background: "var(--bg-overlay)",
+                    color: "var(--text-secondary)",
+                    border: "1px solid var(--border-default)",
+                  }}
+                >
+                  画像を消す
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <form key={formKey} action={handleSubmit} className="px-6 py-5 space-y-5">
           <div>
             <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
               取引の種類
@@ -270,7 +544,7 @@ export default function AddTransactionForm() {
               <input
                 type="date"
                 name="date"
-                defaultValue={today}
+                defaultValue={ocrResult?.date || today}
                 required
                 className="w-full px-3 py-2.5 text-sm"
               />
@@ -285,6 +559,7 @@ export default function AddTransactionForm() {
                 placeholder="0"
                 min="1"
                 step="1"
+                defaultValue={ocrResult?.amount || ""}
                 required
                 className="w-full px-3 py-2.5 text-sm tabular"
               />
@@ -309,12 +584,44 @@ export default function AddTransactionForm() {
                   ? "例: 国民健康保険料 7月分"
                   : "例: スターバックス 渋谷店"
               }
+              defaultValue={ocrResult?.description || ""}
               required
               className="w-full px-3 py-2.5 text-sm"
             />
           </div>
 
-          {/* タグ選択 - business/reimbursable/fixed_asset のみ */}
+          {/* 勘定科目 */}
+          {(category === "business" || isReimbursable || isFixedAsset) && (
+            <div>
+              <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
+                勘定科目
+              </label>
+              <select
+                name="accountCode"
+                value={accountCode}
+                onChange={(e) => setAccountCode(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm"
+              >
+                <option value="">未選択</option>
+                {type === "income"
+                  ? INCOME_ACCOUNTS.map((opt) => (
+                      <option key={opt.code} value={opt.code}>
+                        {opt.label}
+                      </option>
+                    ))
+                  : EXPENSE_ACCOUNTS.map((group) => (
+                      <optgroup key={group.label} label={group.label}>
+                        {group.options.map((opt) => (
+                          <option key={opt.code} value={opt.code}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+              </select>
+            </div>
+          )}
+
           {showTags && (
             <div>
               <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">

@@ -52,6 +52,7 @@ export async function addTransaction(formData: FormData): Promise<{
     const paymentMethod = formData.get("paymentMethod") as string;
     const note = formData.get("note") as string;
     const tagIds = formData.getAll("tagIds") as string[];
+    const accountCode = formData.get("accountCode") as string | null;
 
     if (!date || !description || !amountStr || !type || !category) {
       return { ok: false, error: "必須項目が入力されていません" };
@@ -78,6 +79,7 @@ export async function addTransaction(formData: FormData): Promise<{
       actualSettlementDate:
         settlementStatus === "settled" ? date : undefined,
       tagIds: tagIds || [],
+      accountCode: accountCode || undefined,
       paymentMethod: paymentMethod || undefined,
       note: note || undefined,
       createdAt: now,

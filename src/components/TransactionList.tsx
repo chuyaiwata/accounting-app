@@ -6,6 +6,7 @@ import {
   deleteTransaction,
 } from "@/lib/actions/transactions";
 import type { Transaction, TransactionCategory } from "@/lib/types";
+import { Check, Trash2, AlertTriangle } from "lucide-react";
 
 interface Props {
   transactions: Transaction[];
@@ -23,16 +24,16 @@ const CATEGORY_LABELS: Record<TransactionCategory, string> = {
   loan: "借入",
 };
 
-const CATEGORY_COLORS: Record<TransactionCategory, string> = {
-  business: "bg-gray-100 text-gray-700",
-  reimbursable: "bg-purple-100 text-purple-700",
-  private_drawing: "bg-yellow-100 text-yellow-700",
-  private_contribution: "bg-yellow-100 text-yellow-700",
-  tax_deductible: "bg-indigo-100 text-indigo-700",
-  fixed_asset: "bg-sky-100 text-sky-700",
-  prepaid: "bg-pink-100 text-pink-700",
-  inventory: "bg-teal-100 text-teal-700",
-  loan: "bg-red-100 text-red-700",
+const CATEGORY_COLORS: Record<TransactionCategory, { bg: string; text: string }> = {
+  business: { bg: "rgba(180, 184, 196, 0.1)", text: "#b4b8c4" },
+  reimbursable: { bg: "rgba(192, 132, 252, 0.15)", text: "#c084fc" },
+  private_drawing: { bg: "rgba(251, 191, 36, 0.15)", text: "#fbbf24" },
+  private_contribution: { bg: "rgba(251, 191, 36, 0.15)", text: "#fbbf24" },
+  tax_deductible: { bg: "rgba(79, 139, 255, 0.15)", text: "#4f8bff" },
+  fixed_asset: { bg: "rgba(34, 211, 238, 0.15)", text: "#22d3ee" },
+  prepaid: { bg: "rgba(236, 72, 153, 0.15)", text: "#ec4899" },
+  inventory: { bg: "rgba(20, 184, 166, 0.15)", text: "#14b8a6" },
+  loan: { bg: "rgba(248, 113, 113, 0.15)", text: "#f87171" },
 };
 
 export default function TransactionList({ transactions }: Props) {
@@ -62,9 +63,17 @@ export default function TransactionList({ transactions }: Props) {
 
   if (transactions.length === 0) {
     return (
-      <div className="border rounded-lg p-12 text-center bg-gray-50">
-        <p className="text-gray-700 mb-2">取引がまだ登録されていません</p>
-        <p className="text-sm text-gray-500">
+      <div
+        className="rounded-xl p-12 text-center"
+        style={{
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border-subtle)",
+        }}
+      >
+        <p className="text-sm text-[var(--text-secondary)] mb-2">
+          取引がまだ登録されていません
+        </p>
+        <p className="text-xs text-[var(--text-tertiary)]">
           上の「取引を追加」ボタンから最初の取引を記録しましょう
         </p>
       </div>
@@ -72,104 +81,133 @@ export default function TransactionList({ transactions }: Props) {
   }
 
   return (
-    <div className="border rounded-lg overflow-x-auto">
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{
+        background: "var(--bg-elevated)",
+        border: "1px solid var(--border-subtle)",
+      }}
+    >
       <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-gray-500">
-          <tr>
-            <th className="text-left px-3 py-2 font-normal whitespace-nowrap">
+        <thead>
+          <tr style={{ background: "var(--bg-overlay)" }}>
+            <th className="text-left px-4 py-3 font-medium text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide whitespace-nowrap">
               日付
             </th>
-            <th className="text-left px-3 py-2 font-normal whitespace-nowrap">
+            <th className="text-left px-3 py-3 font-medium text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide whitespace-nowrap">
               区分
             </th>
-            <th className="text-left px-3 py-2 font-normal">内容</th>
-            <th className="text-left px-3 py-2 font-normal whitespace-nowrap">
+            <th className="text-left px-3 py-3 font-medium text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide">
+              内容
+            </th>
+            <th className="text-left px-3 py-3 font-medium text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide whitespace-nowrap">
               決済方法
             </th>
-            <th className="text-left px-3 py-2 font-normal whitespace-nowrap">
+            <th className="text-left px-3 py-3 font-medium text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide whitespace-nowrap">
               状態
             </th>
-            <th className="text-right px-3 py-2 font-normal whitespace-nowrap">
+            <th className="text-right px-3 py-3 font-medium text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide whitespace-nowrap">
               金額
             </th>
-            <th className="text-center px-3 py-2 font-normal whitespace-nowrap">
+            <th className="text-center px-4 py-3 font-medium text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide whitespace-nowrap">
               操作
             </th>
           </tr>
         </thead>
         <tbody>
-          {transactions.map((t) => {
+          {transactions.map((t, idx) => {
             const isUnpaid = t.settlementStatus === "unpaid";
+            const today = new Date().toISOString().slice(0, 10);
             const isOverdue =
               isUnpaid &&
               t.expectedSettlementDate &&
-              t.expectedSettlementDate 
-                new Date().toISOString().slice(0, 10);
+              t.expectedSettlementDate < today;
+            const catColor = CATEGORY_COLORS[t.category];
             return (
-              <tr key={t.id} className="border-t">
-                <td className="px-3 py-3 whitespace-nowrap text-gray-700">
+              <tr
+                key={t.id}
+                className="transition hover:bg-[var(--bg-hover)]"
+                style={{
+                  borderTop: idx === 0 ? "none" : "1px solid var(--border-subtle)",
+                }}
+              >
+                <td className="px-4 py-3 whitespace-nowrap text-[var(--text-secondary)] tabular text-xs">
                   {t.date}
                 </td>
                 <td className="px-3 py-3 whitespace-nowrap">
                   <span
-                    className={
-                      "inline-block text-xs px-2 py-0.5 rounded " +
-                      CATEGORY_COLORS[t.category]
-                    }
+                    className="inline-block text-[10px] font-medium px-2 py-0.5 rounded"
+                    style={{ background: catColor.bg, color: catColor.text }}
                   >
                     {CATEGORY_LABELS[t.category]}
                   </span>
                 </td>
                 <td className="px-3 py-3">
-                  <div className="text-gray-900">{t.description}</div>
+                  <div className="text-[var(--text-primary)] text-sm">{t.description}</div>
                   {t.note && (
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
                       {t.note}
                     </div>
                   )}
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-gray-600">
+                <td className="px-3 py-3 whitespace-nowrap text-xs text-[var(--text-secondary)]">
                   {t.paymentMethod || "—"}
                 </td>
                 <td className="px-3 py-3 whitespace-nowrap">
                   {isUnpaid ? (
                     <span
-                      className={
-                        "inline-block text-xs px-2 py-0.5 rounded " +
-                        (isOverdue
-                          ? "bg-red-100 text-red-700"
-                          : "bg-orange-100 text-orange-700")
-                      }
+                      className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded"
+                      style={{
+                        background: isOverdue
+                          ? "rgba(248, 113, 113, 0.15)"
+                          : "rgba(251, 191, 36, 0.15)",
+                        color: isOverdue ? "#f87171" : "#fbbf24",
+                      }}
                     >
+                      {isOverdue && <AlertTriangle className="w-2.5 h-2.5" />}
                       {t.type === "income" ? "未入金" : "未払い"}
                       {t.expectedSettlementDate && (
-                        <span className="ml-1">
-                          ({t.expectedSettlementDate})
+                        <span className="opacity-70 ml-0.5">
+                          {t.expectedSettlementDate.slice(5)}
                         </span>
                       )}
                     </span>
                   ) : (
-                    <span className="inline-block text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">
+                    <span
+                      className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded"
+                      style={{
+                        background: "rgba(52, 211, 153, 0.12)",
+                        color: "#34d399",
+                      }}
+                    >
+                      <Check className="w-2.5 h-2.5" />
                       {t.type === "income" ? "入金済" : "決済済"}
                     </span>
                   )}
                 </td>
                 <td
-                  className={
-                    "px-3 py-3 text-right font-medium whitespace-nowrap " +
-                    (t.type === "income" ? "text-green-700" : "text-gray-900")
-                  }
+                  className="px-3 py-3 text-right whitespace-nowrap font-medium tabular text-sm"
+                  style={{
+                    color:
+                      t.type === "income"
+                        ? "#34d399"
+                        : "var(--text-primary)",
+                  }}
                 >
-                  {t.type === "income" ? "+" : "-"}¥
-                  {t.amount.toLocaleString()}
+                  {t.type === "income" ? "+" : "−"}¥{t.amount.toLocaleString()}
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-center">
-                  <div className="flex gap-1 justify-center">
+                <td className="px-4 py-3 whitespace-nowrap text-center">
+                  <div className="flex gap-1 justify-end">
                     {isUnpaid && (
                       <button
                         onClick={() => handleSettle(t.id)}
                         disabled={isPending}
-                        className="text-xs px-2 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
+                        className="text-[11px] px-2 py-1 rounded transition disabled:opacity-50"
+                        style={{
+                          background: "var(--bg-overlay)",
+                          color: "var(--text-secondary)",
+                          border: "1px solid var(--border-default)",
+                        }}
                       >
                         決済済にする
                       </button>
@@ -177,10 +215,11 @@ export default function TransactionList({ transactions }: Props) {
                     <button
                       onClick={() => handleDelete(t.id, t.description)}
                       disabled={isPending}
-                      className="text-xs px-2 py-1 border rounded text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50"
+                      className="p-1.5 rounded transition disabled:opacity-50 hover:bg-[var(--color-danger-bg)]"
+                      style={{ color: "var(--text-tertiary)" }}
                       aria-label="削除"
                     >
-                      削除
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </td>

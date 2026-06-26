@@ -1,6 +1,3 @@
-// =============================================================================
-// 取引のサーバーアクション
-// =============================================================================
 "use server";
 
 import { auth } from "@/auth";
@@ -37,9 +34,6 @@ async function requireAccessToken(): Promise<string> {
   return session.accessToken;
 }
 
-/**
- * 取引を1件追加
- */
 export async function addTransaction(formData: FormData): Promise<{
   ok: boolean;
   error?: string;
@@ -52,13 +46,12 @@ export async function addTransaction(formData: FormData): Promise<{
     const amountStr = formData.get("amount") as string;
     const type = formData.get("type") as TransactionType;
     const category = formData.get("category") as TransactionCategory;
-    const taxDeductionType = formData.get("taxDeductionType") as
-      | TaxDeductionType
-      | null;
+    const taxDeductionType = formData.get("taxDeductionType") as TaxDeductionType | null;
     const settlementStatus = (formData.get("settlementStatus") as SettlementStatus) || "settled";
     const expectedSettlementDate = formData.get("expectedSettlementDate") as string;
     const paymentMethod = formData.get("paymentMethod") as string;
     const note = formData.get("note") as string;
+    const tagIds = formData.getAll("tagIds") as string[];
 
     if (!date || !description || !amountStr || !type || !category) {
       return { ok: false, error: "必須項目が入力されていません" };
@@ -84,7 +77,7 @@ export async function addTransaction(formData: FormData): Promise<{
       expectedSettlementDate: expectedSettlementDate || undefined,
       actualSettlementDate:
         settlementStatus === "settled" ? date : undefined,
-      tagIds: [],
+      tagIds: tagIds || [],
       paymentMethod: paymentMethod || undefined,
       note: note || undefined,
       createdAt: now,
@@ -103,9 +96,6 @@ export async function addTransaction(formData: FormData): Promise<{
   }
 }
 
-/**
- * 取引を全件取得(日付の降順)
- */
 export async function listTransactions(): Promise<Transaction[]> {
   try {
     const accessToken = await requireAccessToken();
@@ -122,11 +112,8 @@ export async function listTransactions(): Promise<Transaction[]> {
   }
 }
 
-/**
- * 取引の決済を完了にする(未払/未入金 → 支払済み/入金済み)
- */
 export async function settleTransaction(
-  transactionId: ID,
+  transactionId: string,
   actualDate: string
 ): Promise<{ ok: boolean; error?: string }> {
   try {
@@ -164,11 +151,8 @@ export async function settleTransaction(
   }
 }
 
-/**
- * 取引を削除
- */
 export async function deleteTransaction(
-  transactionId: ID
+  transactionId: string
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const accessToken = await requireAccessToken();
@@ -199,6 +183,3 @@ export async function deleteTransaction(
     return { ok: false, error: message };
   }
 }
-
-// 型インポートのヘルパー(internal)
-type ID = string;

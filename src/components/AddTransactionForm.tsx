@@ -8,6 +8,7 @@ import type {
   TaxDeductionType,
   SettlementStatus,
 } from "@/lib/types";
+import { Plus, X } from "lucide-react";
 
 interface CategoryOption {
   value: TransactionCategory;
@@ -16,36 +17,12 @@ interface CategoryOption {
 }
 
 const CATEGORY_OPTIONS: CategoryOption[] = [
-  {
-    value: "business",
-    label: "通常取引",
-    description: "売上・経費(損益計算書に反映)",
-  },
-  {
-    value: "reimbursable",
-    label: "立替金",
-    description: "コート代などの立替/回収(損益に影響なし)",
-  },
-  {
-    value: "private_drawing",
-    label: "事業主貸",
-    description: "事業のお金で個人の支払い(食費・娯楽費等)",
-  },
-  {
-    value: "private_contribution",
-    label: "事業主借",
-    description: "個人のお金を事業に入れる",
-  },
-  {
-    value: "tax_deductible",
-    label: "所得控除",
-    description: "国保・年金・医療費・寄附等(確定申告で控除)",
-  },
-  {
-    value: "fixed_asset",
-    label: "固定資産購入",
-    description: "PC等の高額機材(30万円未満は一括経費)",
-  },
+  { value: "business", label: "通常取引", description: "売上・経費(損益に反映)" },
+  { value: "reimbursable", label: "立替金", description: "コート代などの立替/回収" },
+  { value: "private_drawing", label: "事業主貸", description: "事業のお金で個人の支払い" },
+  { value: "private_contribution", label: "事業主借", description: "個人のお金を事業に入れる" },
+  { value: "tax_deductible", label: "所得控除", description: "国保・年金・医療費・寄附等" },
+  { value: "fixed_asset", label: "固定資産購入", description: "PC等の高額機材" },
 ];
 
 const TAX_DEDUCTION_OPTIONS: { value: TaxDeductionType; label: string }[] = [
@@ -59,6 +36,14 @@ const TAX_DEDUCTION_OPTIONS: { value: TaxDeductionType; label: string }[] = [
   { value: "other", label: "その他" },
 ];
 
+// 事業タグ(将来は設定画面で編集可能に)
+const TAGS = [
+  { id: "pbs4", name: "PBS4", color: "#4f8bff" },
+  { id: "upcycle", name: "アップサイクル", color: "#34d399" },
+  { id: "event", name: "イベント", color: "#fbbf24" },
+  { id: "common", name: "共通", color: "#7a7f8c" },
+];
+
 export default function AddTransactionForm() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,8 +51,8 @@ export default function AddTransactionForm() {
 
   const [category, setCategory] = useState<TransactionCategory>("business");
   const [type, setType] = useState<TransactionType>("expense");
-  const [settlementStatus, setSettlementStatus] =
-    useState<SettlementStatus>("settled");
+  const [settlementStatus, setSettlementStatus] = useState<SettlementStatus>("settled");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -75,11 +60,20 @@ export default function AddTransactionForm() {
     setCategory("business");
     setType("expense");
     setSettlementStatus("settled");
+    setSelectedTags([]);
     setError(null);
+  }
+
+  function toggleTag(tagId: string) {
+    setSelectedTags((prev) =>
+      prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId]
+    );
   }
 
   function handleSubmit(formData: FormData) {
     setError(null);
+    // タグをFormDataに追加
+    selectedTags.forEach((tagId) => formData.append("tagIds", tagId));
     startTransition(async () => {
       const result = await addTransaction(formData);
       if (result.ok) {
@@ -95,18 +89,20 @@ export default function AddTransactionForm() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-700"
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition hover:opacity-90"
+        style={{ background: "var(--accent)", color: "white" }}
       >
-        + 取引を追加
+        <Plus className="w-4 h-4" />
+        取引を追加
       </button>
     );
   }
 
   const isReimbursable = category === "reimbursable";
-  const isPrivate =
-    category === "private_drawing" || category === "private_contribution";
+  const isPrivate = category === "private_drawing" || category === "private_contribution";
   const isTaxDeductible = category === "tax_deductible";
   const isFixedAsset = category === "fixed_asset";
+  const showTags = category === "business" || isReimbursable || isFixedAsset;
 
   function getDefaultType(cat: TransactionCategory): TransactionType {
     switch (cat) {
@@ -122,47 +118,56 @@ export default function AddTransactionForm() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg my-8">
-        <div className="border-b px-6 py-4 flex items-center justify-between sticky top-0 bg-white rounded-t-lg">
-          <h2 className="text-lg font-semibold">取引を追加</h2>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center p-6 overflow-y-auto"
+      style={{ background: "rgba(0, 0, 0, 0.6)", backdropFilter: "blur(4px)" }}
+    >
+      <div
+        className="rounded-2xl w-full max-w-xl my-8"
+        style={{
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border-default)",
+          boxShadow: "var(--shadow-lg)",
+        }}
+      >
+        <div
+          className="px-6 py-4 flex items-center justify-between sticky top-0 rounded-t-2xl z-10"
+          style={{
+            background: "var(--bg-elevated)",
+            borderBottom: "1px solid var(--border-subtle)",
+          }}
+        >
+          <h2 className="text-base font-semibold">取引を追加</h2>
           <button
-            onClick={() => {
-              resetForm();
-              setOpen(false);
-            }}
-            className="text-gray-400 hover:text-gray-600"
+            onClick={() => { resetForm(); setOpen(false); }}
+            className="p-1 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition"
             aria-label="閉じる"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form action={handleSubmit} className="px-6 py-5 space-y-4">
+        <form action={handleSubmit} className="px-6 py-5 space-y-5">
           <div>
-            <label className="block text-xs text-gray-500 mb-2">
-              取引の種類 <span className="text-red-500">*</span>
+            <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
+              取引の種類
             </label>
             <div className="grid grid-cols-2 gap-2">
               {CATEGORY_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => {
-                    setCategory(opt.value);
-                    setType(getDefaultType(opt.value));
+                  onClick={() => { setCategory(opt.value); setType(getDefaultType(opt.value)); }}
+                  className="text-left p-3 rounded-lg text-xs transition"
+                  style={{
+                    background: category === opt.value ? "var(--bg-hover)" : "var(--bg-overlay)",
+                    border: category === opt.value
+                      ? "1px solid var(--accent)"
+                      : "1px solid var(--border-default)",
                   }}
-                  className={
-                    "text-left p-2 border rounded-md text-xs transition " +
-                    (category === opt.value
-                      ? "border-gray-900 bg-gray-50"
-                      : "border-gray-200 hover:border-gray-400")
-                  }
                 >
-                  <div className="font-medium text-sm text-gray-900">
-                    {opt.label}
-                  </div>
-                  <div className="text-gray-500 mt-0.5">{opt.description}</div>
+                  <div className="font-semibold text-sm text-[var(--text-primary)]">{opt.label}</div>
+                  <div className="text-[var(--text-tertiary)] mt-0.5 text-[11px]">{opt.description}</div>
                 </button>
               ))}
             </div>
@@ -171,31 +176,31 @@ export default function AddTransactionForm() {
 
           {category === "business" && (
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                収入 / 支出 <span className="text-red-500">*</span>
+              <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
+                収入 / 支出
               </label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setType("expense")}
-                  className={
-                    "flex-1 px-3 py-2 border rounded-md text-sm " +
-                    (type === "expense"
-                      ? "border-gray-900 bg-gray-900 text-white"
-                      : "border-gray-200")
-                  }
+                  className="px-3 py-2.5 rounded-lg text-sm font-medium transition"
+                  style={{
+                    background: type === "expense" ? "var(--text-primary)" : "var(--bg-overlay)",
+                    color: type === "expense" ? "var(--bg-base)" : "var(--text-secondary)",
+                    border: "1px solid var(--border-default)",
+                  }}
                 >
                   支出
                 </button>
                 <button
                   type="button"
                   onClick={() => setType("income")}
-                  className={
-                    "flex-1 px-3 py-2 border rounded-md text-sm " +
-                    (type === "income"
-                      ? "border-green-700 bg-green-700 text-white"
-                      : "border-gray-200")
-                  }
+                  className="px-3 py-2.5 rounded-lg text-sm font-medium transition"
+                  style={{
+                    background: type === "income" ? "#34d399" : "var(--bg-overlay)",
+                    color: type === "income" ? "var(--bg-base)" : "var(--text-secondary)",
+                    border: "1px solid var(--border-default)",
+                  }}
                 >
                   収入
                 </button>
@@ -206,22 +211,18 @@ export default function AddTransactionForm() {
 
           {isTaxDeductible && (
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                控除の種類 <span className="text-red-500">*</span>
+              <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
+                控除の種類
               </label>
               <select
                 name="taxDeductionType"
                 required
-                className="w-full border rounded-md px-3 py-2 text-sm"
+                className="w-full px-3 py-2.5 text-sm rounded-lg"
                 defaultValue=""
               >
-                <option value="" disabled>
-                  選択してください
-                </option>
+                <option value="" disabled>選択してください</option>
                 {TAX_DEDUCTION_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
             </div>
@@ -229,31 +230,31 @@ export default function AddTransactionForm() {
 
           {isReimbursable && (
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                立替の動き <span className="text-red-500">*</span>
+              <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
+                立替の動き
               </label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setType("expense")}
-                  className={
-                    "flex-1 px-3 py-2 border rounded-md text-sm " +
-                    (type === "expense"
-                      ? "border-gray-900 bg-gray-900 text-white"
-                      : "border-gray-200")
-                  }
+                  className="px-3 py-2.5 rounded-lg text-sm font-medium transition"
+                  style={{
+                    background: type === "expense" ? "var(--text-primary)" : "var(--bg-overlay)",
+                    color: type === "expense" ? "var(--bg-base)" : "var(--text-secondary)",
+                    border: "1px solid var(--border-default)",
+                  }}
                 >
                   立替(支払った)
                 </button>
                 <button
                   type="button"
                   onClick={() => setType("income")}
-                  className={
-                    "flex-1 px-3 py-2 border rounded-md text-sm " +
-                    (type === "income"
-                      ? "border-green-700 bg-green-700 text-white"
-                      : "border-gray-200")
-                  }
+                  className="px-3 py-2.5 rounded-lg text-sm font-medium transition"
+                  style={{
+                    background: type === "income" ? "#34d399" : "var(--bg-overlay)",
+                    color: type === "income" ? "var(--bg-base)" : "var(--text-secondary)",
+                    border: "1px solid var(--border-default)",
+                  }}
                 >
                   回収(受け取った)
                 </button>
@@ -263,20 +264,20 @@ export default function AddTransactionForm() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                日付 <span className="text-red-500">*</span>
+              <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
+                日付
               </label>
               <input
                 type="date"
                 name="date"
                 defaultValue={today}
                 required
-                className="w-full border rounded-md px-3 py-2 text-sm"
+                className="w-full px-3 py-2.5 text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                金額 <span className="text-red-500">*</span>
+              <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
+                金額
               </label>
               <input
                 type="number"
@@ -285,14 +286,14 @@ export default function AddTransactionForm() {
                 min="1"
                 step="1"
                 required
-                className="w-full border rounded-md px-3 py-2 text-sm"
+                className="w-full px-3 py-2.5 text-sm tabular"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">
-              内容 <span className="text-red-500">*</span>
+            <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
+              内容
             </label>
             <input
               type="text"
@@ -309,78 +310,103 @@ export default function AddTransactionForm() {
                   : "例: スターバックス 渋谷店"
               }
               required
-              className="w-full border rounded-md px-3 py-2 text-sm"
+              className="w-full px-3 py-2.5 text-sm"
             />
           </div>
+
+          {/* タグ選択 - business/reimbursable/fixed_asset のみ */}
+          {showTags && (
+            <div>
+              <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
+                事業タグ(複数選択可)
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {TAGS.map((tag) => {
+                  const selected = selectedTags.includes(tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag.id)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition"
+                      style={{
+                        background: selected
+                          ? `${tag.color}20`
+                          : "var(--bg-overlay)",
+                        color: selected ? tag.color : "var(--text-secondary)",
+                        border: selected
+                          ? `1px solid ${tag.color}`
+                          : "1px solid var(--border-default)",
+                      }}
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ background: tag.color }}
+                      />
+                      {tag.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {(category === "business" || isReimbursable) && (
             <>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">
+                <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
                   決済状態
                 </label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setSettlementStatus("settled")}
-                    className={
-                      "flex-1 px-3 py-2 border rounded-md text-sm " +
-                      (settlementStatus === "settled"
-                        ? "border-gray-900 bg-gray-50"
-                        : "border-gray-200")
-                    }
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition"
+                    style={{
+                      background: settlementStatus === "settled" ? "var(--bg-hover)" : "var(--bg-overlay)",
+                      color: settlementStatus === "settled" ? "var(--text-primary)" : "var(--text-secondary)",
+                      border: settlementStatus === "settled"
+                        ? "1px solid var(--border-strong)"
+                        : "1px solid var(--border-default)",
+                    }}
                   >
                     {type === "income" ? "入金済み" : "支払済み"}
                   </button>
                   <button
                     type="button"
                     onClick={() => setSettlementStatus("unpaid")}
-                    className={
-                      "flex-1 px-3 py-2 border rounded-md text-sm " +
-                      (settlementStatus === "unpaid"
-                        ? "border-orange-600 bg-orange-50 text-orange-700"
-                        : "border-gray-200")
-                    }
+                    className="px-3 py-2.5 rounded-lg text-sm font-medium transition"
+                    style={{
+                      background: settlementStatus === "unpaid" ? "rgba(248, 113, 113, 0.15)" : "var(--bg-overlay)",
+                      color: settlementStatus === "unpaid" ? "#f87171" : "var(--text-secondary)",
+                      border: settlementStatus === "unpaid"
+                        ? "1px solid #f87171"
+                        : "1px solid var(--border-default)",
+                    }}
                   >
                     {type === "income" ? "未入金" : "未払い"}
                   </button>
                 </div>
-                <input
-                  type="hidden"
-                  name="settlementStatus"
-                  value={settlementStatus}
-                />
+                <input type="hidden" name="settlementStatus" value={settlementStatus} />
               </div>
 
               {settlementStatus === "unpaid" && (
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">
+                  <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
                     {type === "income" ? "入金予定日" : "支払予定日"}
                   </label>
-                  <input
-                    type="date"
-                    name="expectedSettlementDate"
-                    className="w-full border rounded-md px-3 py-2 text-sm"
-                  />
+                  <input type="date" name="expectedSettlementDate" className="w-full px-3 py-2.5 text-sm" />
                 </div>
               )}
             </>
           )}
 
-          {(category === "business" ||
-            isReimbursable ||
-            isPrivate ||
-            isTaxDeductible ||
-            isFixedAsset) && (
+          {(category === "business" || isReimbursable || isPrivate || isTaxDeductible || isFixedAsset) && (
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
+              <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
                 決済方法
               </label>
-              <select
-                name="paymentMethod"
-                defaultValue=""
-                className="w-full border rounded-md px-3 py-2 text-sm"
-              >
+              <select name="paymentMethod" defaultValue="" className="w-full px-3 py-2.5 text-sm">
                 <option value="">未選択</option>
                 <option value="現金">現金</option>
                 <option value="三菱UFJ銀行">三菱UFJ銀行</option>
@@ -395,31 +421,43 @@ export default function AddTransactionForm() {
           )}
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">
+            <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
               メモ(任意)
             </label>
             <textarea
               name="note"
               rows={2}
               placeholder="税務調査時の説明用に詳細を書いておくと安心"
-              className="w-full border rounded-md px-3 py-2 text-sm"
+              className="w-full px-3 py-2.5 text-sm resize-none"
             />
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-3 py-2">
+            <div
+              className="rounded-lg px-3 py-2.5 text-sm"
+              style={{
+                background: "var(--color-danger-bg)",
+                color: "#f87171",
+                border: "1px solid rgba(248, 113, 113, 0.3)",
+              }}
+            >
               {error}
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div
+            className="flex justify-end gap-2 pt-3"
+            style={{ borderTop: "1px solid var(--border-subtle)" }}
+          >
             <button
               type="button"
-              onClick={() => {
-                resetForm();
-                setOpen(false);
+              onClick={() => { resetForm(); setOpen(false); }}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition"
+              style={{
+                background: "var(--bg-overlay)",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border-default)",
               }}
-              className="px-4 py-2 border rounded-md text-sm hover:bg-gray-50"
               disabled={isPending}
             >
               キャンセル
@@ -427,7 +465,8 @@ export default function AddTransactionForm() {
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm hover:bg-gray-700 disabled:opacity-50"
+              className="px-5 py-2 rounded-lg text-sm font-medium transition hover:opacity-90 disabled:opacity-50"
+              style={{ background: "var(--accent)", color: "white" }}
             >
               {isPending ? "保存中..." : "保存"}
             </button>

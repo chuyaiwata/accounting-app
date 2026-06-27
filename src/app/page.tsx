@@ -1,15 +1,11 @@
-import { auth, signIn, signOut } from "@/auth";
+import { auth, signIn } from "@/auth";
 import AddTransactionForm from "@/components/AddTransactionForm";
 import TransactionList from "@/components/TransactionList";
 import DashboardCharts from "@/components/DashboardCharts";
 import AnnualPL from "@/components/AnnualPL";
 import { listTransactions } from "@/lib/actions/transactions";
 import {
-  LayoutDashboard,
   Receipt,
-  FileText,
-  Settings,
-  LogOut,
   TrendingUp,
   TrendingDown,
   Wallet,
@@ -212,260 +208,132 @@ export default async function Home() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen">
-      {/* PC用サイドバー */}
-      <aside
-        className="hidden md:flex w-60 flex-shrink-0 flex-col py-6 px-3"
-        style={{
-          background: "var(--bg-elevated)",
-          borderRight: "1px solid var(--border-subtle)",
-        }}
-      >
-        <div className="flex items-center gap-2.5 px-3 mb-8">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "var(--accent-muted)" }}
-          >
-            <Wallet className="w-4 h-4 text-[var(--accent)]" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">Accounting</p>
-            <p className="text-[10px] text-[var(--text-tertiary)] -mt-0.5">for solo business</p>
-          </div>
+    <div className="px-4 md:px-10 py-6 md:py-8 max-w-[1400px]">
+      {/* ヘッダー */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6 md:mb-10">
+        <div>
+          <p className="text-[10px] md:text-xs text-[var(--text-tertiary)] mb-1 md:mb-2 tracking-wide uppercase">
+            {now.getFullYear()}年 {now.getMonth() + 1}月
+          </p>
+          <h1 className="text-[22px] md:text-[28px] font-semibold tracking-tight leading-none">
+            ダッシュボード
+          </h1>
         </div>
+        <AddTransactionForm />
+      </div>
 
-        <nav className="space-y-0.5 mb-8">
-          <NavItem icon={<LayoutDashboard className="w-4 h-4" />} label="ダッシュボード" active />
-          <NavItem icon={<Receipt className="w-4 h-4" />} label="取引" />
-          <NavItem icon={<FileText className="w-4 h-4" />} label="請求書" />
-          <NavItem icon={<Settings className="w-4 h-4" />} label="設定" />
-        </nav>
+      {/* メトリクスカード(モバイル:2列、PC:4列) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-6 md:mb-10">
+        <MetricCard
+          label="今月の売上"
+          value={monthlyIncome}
+          prev={prevMonthlyIncome}
+          icon={<TrendingUp className="w-4 h-4" />}
+        />
+        <MetricCard
+          label="今月の経費"
+          value={monthlyExpense}
+          prev={prevMonthlyExpense}
+          icon={<TrendingDown className="w-4 h-4" />}
+          invertCompare
+        />
+        <MetricCard
+          label="今月の損益"
+          value={monthlyProfit}
+          prev={prevMonthlyProfit}
+          icon={<Wallet className="w-4 h-4" />}
+          dynamicColor
+        />
+        <MetricCard
+          label="登録件数"
+          value={transactions.length}
+          icon={<Receipt className="w-4 h-4" />}
+          unit="件"
+        />
+      </div>
 
-        <div className="mt-auto pt-4" style={{ borderTop: "1px solid var(--border-subtle)" }}>
-          <div className="flex items-center gap-2.5 px-2 mb-3">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold"
-              style={{ background: "var(--accent-muted)", color: "var(--accent)" }}
-            >
-              {(session.user.name || "?").slice(0, 1)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium truncate">{session.user.name}</p>
-              <p className="text-[10px] text-[var(--text-tertiary)] truncate">{session.user.email}</p>
-            </div>
-          </div>
-          <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
-            <button
-              type="submit"
-              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-md transition"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              ログアウト
-            </button>
-          </form>
-        </div>
-      </aside>
+      <DashboardCharts monthlyData={monthlyData} incomeByTag={incomeByTagData} />
 
-      {/* モバイル用ヘッダー */}
-      <header
-        className="md:hidden sticky top-0 z-20 flex items-center justify-between px-4 py-3"
-        style={{
-          background: "var(--bg-base)",
-          borderBottom: "1px solid var(--border-subtle)",
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "var(--accent-muted)" }}
-          >
-            <Wallet className="w-3.5 h-3.5 text-[var(--accent)]" />
-          </div>
-          <p className="text-sm font-semibold">Accounting</p>
-        </div>
-        <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
-          <button
-            type="submit"
-            className="text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] px-2 py-1"
-          >
-            ログアウト
-          </button>
-        </form>
-      </header>
+      {/* キャッシュフロー(モバイル:1列、PC:3列) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3 mb-6 md:mb-10 mt-6 md:mt-10">
+        <CashFlowCard
+          label="未払い"
+          value={unpaidAmount}
+          countLabel={`${unpaidCount}件`}
+          icon={<AlertCircle className="w-4 h-4" />}
+        />
+        <CashFlowCard
+          label="未入金"
+          value={unsettledIncome}
+          countLabel={`${unsettledCount}件`}
+          icon={<Clock className="w-4 h-4" />}
+        />
+        <CashFlowCard
+          label="未回収の立替金"
+          value={netReimbursable}
+          countLabel={`${reimbursableCount}件`}
+          icon={<Repeat className="w-4 h-4" />}
+        />
+      </div>
 
-      <main className="flex-1 min-w-0 pb-20 md:pb-0">
-        <div className="px-4 md:px-10 py-6 md:py-8 max-w-[1400px]">
-          {/* ヘッダー */}
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6 md:mb-10">
-            <div>
-              <p className="text-[10px] md:text-xs text-[var(--text-tertiary)] mb-1 md:mb-2 tracking-wide uppercase">
-                {now.getFullYear()}年 {now.getMonth() + 1}月
-              </p>
-              <h1 className="text-[22px] md:text-[28px] font-semibold tracking-tight leading-none">
-                ダッシュボード
-              </h1>
-            </div>
-            <AddTransactionForm />
-          </div>
+      <AnnualPL
+        year={thisYear}
+        yearlyIncome={yearlyIncome}
+        yearlyExpense={yearlyExpense}
+        totalTaxDeductible={totalTaxDeductible}
+      />
 
-          {/* メトリクスカード(モバイル:2列、PC:4列) */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-6 md:mb-10">
-            <MetricCard
-              label="今月の売上"
-              value={monthlyIncome}
-              prev={prevMonthlyIncome}
-              icon={<TrendingUp className="w-4 h-4" />}
-            />
-            <MetricCard
-              label="今月の経費"
-              value={monthlyExpense}
-              prev={prevMonthlyExpense}
-              icon={<TrendingDown className="w-4 h-4" />}
-              invertCompare
-            />
-            <MetricCard
-              label="今月の損益"
-              value={monthlyProfit}
-              prev={prevMonthlyProfit}
-              icon={<Wallet className="w-4 h-4" />}
-              dynamicColor
-            />
-            <MetricCard
-              label="登録件数"
-              value={transactions.length}
-              icon={<Receipt className="w-4 h-4" />}
-              unit="件"
-            />
-          </div>
-
-          <DashboardCharts monthlyData={monthlyData} incomeByTag={incomeByTagData} />
-
-          {/* キャッシュフロー(モバイル:1列、PC:3列) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3 mb-6 md:mb-10 mt-6 md:mt-10">
-            <CashFlowCard
-              label="未払い"
-              value={unpaidAmount}
-              countLabel={`${unpaidCount}件`}
-              icon={<AlertCircle className="w-4 h-4" />}
-            />
-            <CashFlowCard
-              label="未入金"
-              value={unsettledIncome}
-              countLabel={`${unsettledCount}件`}
-              icon={<Clock className="w-4 h-4" />}
-            />
-            <CashFlowCard
-              label="未回収の立替金"
-              value={netReimbursable}
-              countLabel={`${reimbursableCount}件`}
-              icon={<Repeat className="w-4 h-4" />}
-            />
-          </div>
-
-          <AnnualPL
-            year={thisYear}
-            yearlyIncome={yearlyIncome}
-            yearlyExpense={yearlyExpense}
-            totalTaxDeductible={totalTaxDeductible}
-          />
-
-          {totalTaxDeductible > 0 && (
-            <div className="mb-6 md:mb-10">
-              <div className="flex items-end justify-between mb-3">
-                <div>
-                  <p className="text-[10px] text-[var(--text-tertiary)] tracking-wide uppercase mb-1">
-                    {thisYear}年
-                  </p>
-                  <h2 className="text-sm md:text-base font-semibold">所得控除の内訳</h2>
-                </div>
-                <p className="tabular text-base md:text-xl font-semibold">
-                  ¥{totalTaxDeductible.toLocaleString()}
-                </p>
-              </div>
-              <div
-                className="rounded-xl p-3 md:p-4"
-                style={{
-                  background: "var(--bg-elevated)",
-                  border: "1px solid var(--border-subtle)",
-                }}
-              >
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {Object.entries(taxDeductibleByType).map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="rounded-lg px-3 py-2.5"
-                      style={{ background: "var(--bg-overlay)" }}
-                    >
-                      <p className="text-[10px] text-[var(--text-tertiary)] mb-1">
-                        {taxDeductionLabel(key)}
-                      </p>
-                      <p className="tabular text-sm font-semibold">
-                        ¥{value.toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-end justify-between mb-3 md:mb-4">
+      {totalTaxDeductible > 0 && (
+        <div className="mb-6 md:mb-10">
+          <div className="flex items-end justify-between mb-3">
             <div>
               <p className="text-[10px] text-[var(--text-tertiary)] tracking-wide uppercase mb-1">
-                最新
+                {thisYear}年
               </p>
-              <h2 className="text-sm md:text-base font-semibold">取引一覧</h2>
+              <h2 className="text-sm md:text-base font-semibold">所得控除の内訳</h2>
             </div>
-            <p className="text-xs text-[var(--text-tertiary)]">全 {transactions.length} 件</p>
+            <p className="tabular text-base md:text-xl font-semibold">
+              ¥{totalTaxDeductible.toLocaleString()}
+            </p>
           </div>
-          <TransactionList transactions={transactions} />
+          <div
+            className="rounded-xl p-3 md:p-4"
+            style={{
+              background: "var(--bg-elevated)",
+              border: "1px solid var(--border-subtle)",
+            }}
+          >
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {Object.entries(taxDeductibleByType).map(([key, value]) => (
+                <div
+                  key={key}
+                  className="rounded-lg px-3 py-2.5"
+                  style={{ background: "var(--bg-overlay)" }}
+                >
+                  <p className="text-[10px] text-[var(--text-tertiary)] mb-1">
+                    {taxDeductionLabel(key)}
+                  </p>
+                  <p className="tabular text-sm font-semibold">
+                    ¥{value.toLocaleString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </main>
+      )}
 
-      {/* モバイル用ボトムナビゲーション */}
-      <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around py-2 px-2"
-        style={{
-          background: "var(--bg-elevated)",
-          borderTop: "1px solid var(--border-subtle)",
-        }}
-      >
-        <BottomNavItem icon={<LayoutDashboard className="w-5 h-5" />} label="ホーム" active />
-        <BottomNavItem icon={<Receipt className="w-5 h-5" />} label="取引" />
-        <BottomNavItem icon={<FileText className="w-5 h-5" />} label="請求書" />
-        <BottomNavItem icon={<Settings className="w-5 h-5" />} label="設定" />
-      </nav>
+      <div className="flex items-end justify-between mb-3 md:mb-4">
+        <div>
+          <p className="text-[10px] text-[var(--text-tertiary)] tracking-wide uppercase mb-1">
+            最新
+          </p>
+          <h2 className="text-sm md:text-base font-semibold">取引一覧</h2>
+        </div>
+        <p className="text-xs text-[var(--text-tertiary)]">全 {transactions.length} 件</p>
+      </div>
+      <TransactionList transactions={transactions} />
     </div>
-  );
-}
-
-function NavItem({ icon, label, active = false }: { icon: React.ReactNode; label: string; active?: boolean }) {
-  return (
-    <button
-      className={
-        "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition " +
-        (active
-          ? "text-[var(--text-primary)] bg-[var(--bg-hover)] font-medium"
-          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]")
-      }
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function BottomNavItem({ icon, label, active = false }: { icon: React.ReactNode; label: string; active?: boolean }) {
-  return (
-    <button
-      className="flex flex-col items-center justify-center gap-1 px-3 py-1.5 min-w-[64px] rounded-md transition"
-      style={{
-        color: active ? "var(--accent)" : "var(--text-tertiary)",
-      }}
-    >
-      {icon}
-      <span className="text-[10px] font-medium">{label}</span>
-    </button>
   );
 }
 

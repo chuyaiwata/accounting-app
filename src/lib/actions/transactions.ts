@@ -185,3 +185,80 @@ export async function deleteTransaction(
     return { ok: false, error: message };
   }
 }
+
+export async function updateTransaction(
+  transactionId: string,
+  formData: FormData
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const accessToken = await requireAccessToken();
+    const folderId = await ensureAppFolder(accessToken);
+
+    const items = await readJsonl<Transaction>(
+      accessToken,
+      folderId,
+      TRANSACTIONS_FILE
+    );
+
+    const idx = items.findIndex((t) => t.id === transactionId);
+    if (idx === -1) {
+      return { ok: false, error: "取引が見つかりません" };
+    }
+
+    const date = formData.get("date") as string;
+    const description = formData.get("description") as string;
+    const amountStr = formData.get("amount") as string;
+    const type = formData.get("type") as TransactionType;
+    const category = formData.get("category") as TransactionCategory;
+    const taxDeductionType = formData.get("taxDeductionType") as TaxDeductionType | null;
+    const settlementStatus = (formData.get("settlementStatus") as SettlementStatus) || "settled";
+    const expectedSettlementDate = formData.get("expectedSettlementDate") as string;
+    const paymentMethod = formData.get("paymentMethod") as string;
+    const note = formData.get("note") as string;
+    const tagIds = formData.getAll("tagIds") as string[];
+    const accountCode = formData.get("accountCode") as string | null;
+
+    if (!date || !description || !amountStr || !type || !category) {
+      return { ok: false, error: "必須項目が入力されていません" };
+    }
+
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+      return { ok: false, error: "金額は正の数を入力してください" };
+    }
+
+    const existing = items[idx];
+    items[idx] = {
+      ...existing,
+      date,
+      description,
+      amount,
+      category,
+      type,
+      taxDeductionType: taxDeductionType || undefined,
+      settlementStatus,
+      expectedSettlementDate: expectedSettlementDate || undefined,
+      actualSettlementDate:
+        settlementStatus === "settled"
+          ? existing.actualSettlementDate || date
+          : undefined,
+      tagIds: tagIds || [],
+      accountCode: accountCode || undefined,
+      paymentMethod: paymentMethod || undefined,
+      note: note || undefined,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const newContent =
+      items.map((t) => JSON.stringify(t)).join("\n") + "\n";
+    await uploadTextFile(accessToken, folderId, TRANSACTIONS_FILE, newContent);
+
+    revalidatePath("/");
+    revalidatePath("/transactions");
+    return { ok: true };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "更新に失敗しました";
+    console.error("updateTransaction error:", e);
+    return { ok: false, error: message };
+  }
+}

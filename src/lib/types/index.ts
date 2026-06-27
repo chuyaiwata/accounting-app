@@ -349,3 +349,36 @@ export interface RecurringRule {
 }
 
 //
+
+// -----------------------------------------------------------------------------
+// 設定マスタ (Settings)
+// -----------------------------------------------------------------------------
+
+export interface BusinessTag {
+  id: ID;
+  name: string;
+  color: string;
+}
+
+export interface ApportionRule {
+  accountCode: string;
+  accountLabel: string;
+  businessRatio: number;
+  note?: string;
+}
+
+export type AccountKind = 'bank' | 'card' | 'emoney' | 'cash' | 'other';
+
+export interface AccountMaster {
+  id: ID;
+  name: string;
+  kind: AccountKind;
+  note?: string;
+}
+
+export interface AppSettings {
+  businessTags: BusinessTag[];
+  apportionRules: ApportionRule[];
+  accounts: AccountMaster[];
+  updatedAt: Timestamp;
+}

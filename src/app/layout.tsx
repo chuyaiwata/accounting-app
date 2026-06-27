@@ -53,7 +53,7 @@ export default async function RootLayout({
                 {(session.user.name || "?").slice(0, 1)}
               </div>
             </header>
-            <main className="md:ml-56 pb-20 md:pb-0">{children}</main>
+            <main className="md:ml-56 pb-20 md:pb-0 overflow-x-hidden">{children}</main>
           </div>
         ) : (
           children

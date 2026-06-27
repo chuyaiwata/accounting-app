@@ -187,7 +187,7 @@ function TagsSection({
         {tags.map((tag, idx) => (
           <div
             key={tag.id}
-            className="flex items-center gap-2 p-2 rounded-lg"
+            className="flex items-center gap-2 p-2 rounded-lg min-w-0"
             style={{ background: "var(--bg-overlay)" }}
           >
             <input
@@ -201,13 +201,13 @@ function TagsSection({
               type="text"
               value={tag.name}
               onChange={(e) => updateTag(idx, { name: e.target.value })}
-              className="flex-1 px-3 py-2 text-sm"
+              className="flex-1 min-w-0 px-3 py-2 text-sm"
             />
             <input
               type="text"
               value={tag.id}
               readOnly
-              className="px-3 py-2 text-xs text-[var(--text-tertiary)] w-32 md:w-48"
+              className="hidden md:block px-3 py-2 text-xs text-[var(--text-tertiary)] w-32 md:w-48"
               style={{ background: "transparent" }}
             />
             <button
@@ -279,7 +279,7 @@ function ApportionSection({
           {rules.map((rule, idx) => (
             <div
               key={rule.accountCode}
-              className="flex items-center gap-2 p-2 rounded-lg"
+              className="flex items-center gap-2 p-2 rounded-lg min-w-0"
               style={{ background: "var(--bg-overlay)" }}
             >
               <div className="flex-1 min-w-0">
@@ -408,7 +408,7 @@ function AccountsSection({
         {accounts.map((acc, idx) => (
           <div
             key={acc.id}
-            className="flex items-center gap-2 p-2 rounded-lg"
+            className="flex items-center gap-2 p-2 rounded-lg min-w-0"
             style={{ background: "var(--bg-overlay)" }}
           >
             <select
@@ -428,7 +428,7 @@ function AccountsSection({
               type="text"
               value={acc.name}
               onChange={(e) => updateAccount(idx, { name: e.target.value })}
-              className="flex-1 px-3 py-2 text-sm"
+              className="flex-1 min-w-0 px-3 py-2 text-sm"
             />
             <input
               type="text"

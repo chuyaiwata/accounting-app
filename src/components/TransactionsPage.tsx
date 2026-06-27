@@ -7,6 +7,8 @@ import TransactionFilters, { TransactionFilterState } from "./TransactionFilters
 import { Receipt, Trash2, Pencil } from "lucide-react";
 import { deleteTransaction } from "@/lib/actions/transactions";
 import EditTransactionModal from "./EditTransactionModal";
+import ImportCsvModal from "./ImportCsvModal";
+import { Upload } from "lucide-react";
 
 const TAG_META: Record<string, { name: string; color: string }> = {
   pbs4: { name: "PBS4", color: "#4f8bff" },
@@ -34,6 +36,7 @@ export default function TransactionsPage({ transactions }: Props) {
     keyword: "",
   });
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   // フィルタリング
   const filteredTransactions = useMemo(() => {
@@ -85,13 +88,27 @@ export default function TransactionsPage({ transactions }: Props) {
   return (
     <div className="px-4 md:px-10 py-6 md:py-8 max-w-[1400px]">
       {/* ヘッダー */}
-      <div className="mb-6 md:mb-8">
-        <p className="text-[10px] md:text-xs text-[var(--text-tertiary)] mb-1 md:mb-2 tracking-wide uppercase">
-          取引管理
-        </p>
-        <h1 className="text-[22px] md:text-[28px] font-semibold tracking-tight leading-none">
-          取引一覧
-        </h1>
+      <div className="flex items-end justify-between mb-6 md:mb-8 flex-wrap gap-3">
+        <div>
+          <p className="text-[10px] md:text-xs text-[var(--text-tertiary)] mb-1 md:mb-2 tracking-wide uppercase">
+            取引管理
+          </p>
+          <h1 className="text-[22px] md:text-[28px] font-semibold tracking-tight leading-none">
+            取引一覧
+          </h1>
+        </div>
+        <button
+          onClick={() => setImportOpen(true)}
+          className="px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center gap-2"
+          style={{
+            background: "var(--bg-elevated)",
+            color: "var(--text-primary)",
+            border: "1px solid var(--border-default)",
+          }}
+        >
+          <Upload className="w-4 h-4" />
+          CSV取込
+        </button>
       </div>
 
       {/* フィルタ */}
@@ -204,6 +221,9 @@ export default function TransactionsPage({ transactions }: Props) {
           onClose={() => setEditingTransaction(null)}
         />
       )}
+
+      {/* CSV取込モーダル */}
+      {importOpen && <ImportCsvModal onClose={() => setImportOpen(false)} />}
     </div>
   );
 }

@@ -172,6 +172,9 @@ export interface Transaction {
   paymentMethod?: string;
   note?: string;
 
+  // 取込元データのハッシュ(CSV取込時の重複検知用)
+  rawHash?: string;
+
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -381,4 +384,39 @@ export interface AppSettings {
   apportionRules: ApportionRule[];
   accounts: AccountMaster[];
   updatedAt: Timestamp;
+}
+
+// -----------------------------------------------------------------------------
+// CSV取込 (Import)
+// -----------------------------------------------------------------------------
+
+export type ImportSource =
+  | 'ufj_bank'      // 三菱UFJ銀行
+  | 'ufj_nicos'     // 三菱UFJニコス
+  | 'heart_one'     // Heart One (家賃カード)
+  | 'manual_csv';   // その他汎用CSV
+
+export interface ImportRow {
+  // CSV由来の元データ(重複検知用ハッシュ生成元)
+  rawHash: string;
+  rawDate: string;
+  rawDescription: string;
+  rawAmount: number;
+
+  // Transaction候補(プレビューで編集可能)
+  date: DateString;
+  description: string;
+  amount: number;
+  expectedSettlementDate?: DateString;
+  type: TransactionType;
+  category: TransactionCategory;
+  accountCode?: string;
+  tagIds: ID[];
+  paymentMethod?: string;
+  note?: string;
+
+  // 取込制御
+  include: boolean;          // 取込対象か
+  duplicateOfId?: ID;        // 重複の場合の既存ID
+  warning?: string;          // 警告メッセージ
 }

@@ -3,9 +3,12 @@
 import { auth } from "@/auth";
 import {
   ensureAppFolder,
+  ensureSubFolder,
   appendJsonl,
   readJsonl,
   uploadTextFile,
+  uploadBinaryFile,
+  deleteFile,
 } from "@/lib/drive/client";
 import type {
   Transaction,
@@ -54,6 +57,10 @@ export async function addTransaction(formData: FormData): Promise<{
     const tagIds = formData.getAll("tagIds") as string[];
     const accountCode = formData.get("accountCode") as string | null;
 
+    // レシート画像(任意)
+    const receiptBase64 = formData.get("receiptBase64") as string | null;
+    const receiptMimeType = formData.get("receiptMimeType") as string | null;
+
     if (!date || !description || !amountStr || !type || !category) {
       return { ok: false, error: "必須項目が入力されていません" };
     }
@@ -63,9 +70,45 @@ export async function addTransaction(formData: FormData): Promise<{
       return { ok: false, error: "金額は正の数を入力してください" };
     }
 
+    const folderId = await ensureAppFolder(accessToken);
+    const txId = generateId();
+
+    // レシート画像を Drive にアップロード(あれば)
+    let receiptUrl: string | undefined;
+    if (receiptBase64 && receiptMimeType) {
+      try {
+        const receiptsFolderId = await ensureSubFolder(
+          accessToken,
+          folderId,
+          "receipts"
+        );
+        let ext = "jpg";
+        if (receiptMimeType === "image/png") ext = "png";
+        else if (receiptMimeType === "image/webp") ext = "webp";
+
+        const fileName = date + "_" + txId + "." + ext;
+
+        const binary = atob(receiptBase64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+
+        receiptUrl = await uploadBinaryFile(
+          accessToken,
+          receiptsFolderId,
+          fileName,
+          bytes,
+          receiptMimeType
+        );
+      } catch (e) {
+        console.error("レシート画像保存エラー(取引は保存続行):", e);
+      }
+    }
+
     const now = new Date().toISOString();
     const transaction: Transaction = {
-      id: generateId(),
+      id: txId,
       date,
       description,
       amount,
@@ -82,14 +125,15 @@ export async function addTransaction(formData: FormData): Promise<{
       accountCode: accountCode || undefined,
       paymentMethod: paymentMethod || undefined,
       note: note || undefined,
+      receiptUrl,
       createdAt: now,
       updatedAt: now,
     };
 
-    const folderId = await ensureAppFolder(accessToken);
     await appendJsonl(accessToken, folderId, TRANSACTIONS_FILE, transaction);
 
     revalidatePath("/");
+    revalidatePath("/transactions");
     return { ok: true };
   } catch (e) {
     const message = e instanceof Error ? e.message : "保存に失敗しました";
@@ -218,6 +262,11 @@ export async function updateTransaction(
     const tagIds = formData.getAll("tagIds") as string[];
     const accountCode = formData.get("accountCode") as string | null;
 
+    // レシート画像操作
+    const receiptBase64 = formData.get("receiptBase64") as string | null;
+    const receiptMimeType = formData.get("receiptMimeType") as string | null;
+    const receiptAction = formData.get("receiptAction") as string | null; // "add" | "delete" | null
+
     if (!date || !description || !amountStr || !type || !category) {
       return { ok: false, error: "必須項目が入力されていません" };
     }
@@ -228,6 +277,60 @@ export async function updateTransaction(
     }
 
     const existing = items[idx];
+
+    // レシート画像処理
+    let newReceiptUrl: string | undefined = existing.receiptUrl;
+
+    if (receiptAction === "delete" && existing.receiptUrl) {
+      // 既存画像を削除
+      try {
+        await deleteFile(accessToken, existing.receiptUrl);
+      } catch (e) {
+        console.error("既存レシート削除エラー(続行):", e);
+      }
+      newReceiptUrl = undefined;
+    } else if (receiptAction === "add" && receiptBase64 && receiptMimeType) {
+      // 既存画像があれば削除してから新規アップロード(差し替え)
+      if (existing.receiptUrl) {
+        try {
+          await deleteFile(accessToken, existing.receiptUrl);
+        } catch (e) {
+          console.error("既存レシート削除エラー(続行):", e);
+        }
+      }
+
+      try {
+        const receiptsFolderId = await ensureSubFolder(
+          accessToken,
+          folderId,
+          "receipts"
+        );
+        let ext = "jpg";
+        if (receiptMimeType === "image/png") ext = "png";
+        else if (receiptMimeType === "image/webp") ext = "webp";
+
+        const fileName = date + "_" + existing.id + "." + ext;
+
+        const binary = atob(receiptBase64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+
+        newReceiptUrl = await uploadBinaryFile(
+          accessToken,
+          receiptsFolderId,
+          fileName,
+          bytes,
+          receiptMimeType
+        );
+      } catch (e) {
+        console.error("レシート画像保存エラー(取引は更新続行):", e);
+        // 元の receiptUrl を維持
+        newReceiptUrl = existing.receiptUrl;
+      }
+    }
+
     items[idx] = {
       ...existing,
       date,
@@ -246,6 +349,7 @@ export async function updateTransaction(
       accountCode: accountCode || undefined,
       paymentMethod: paymentMethod || undefined,
       note: note || undefined,
+      receiptUrl: newReceiptUrl,
       updatedAt: new Date().toISOString(),
     };
 

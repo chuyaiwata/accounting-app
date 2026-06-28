@@ -211,3 +211,112 @@ export async function readJsonl<T>(
     .filter((line) => line.trim().length > 0)
     .map((line) => JSON.parse(line) as T);
 }
+
+
+/**
+ * サブフォルダを取得(なければ作成)
+ */
+export async function ensureSubFolder(
+  accessToken: string,
+  parentFolderId: string,
+  folderName: string
+): Promise<string> {
+  const searchUrl =
+    `/files?` +
+    new URLSearchParams({
+      q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and '${parentFolderId}' in parents and trashed=false`,
+      fields: "files(id, name)",
+      spaces: "drive",
+    });
+
+  const searchRes = await driveRequest(accessToken, searchUrl);
+  if (!searchRes.ok) {
+    throw new Error(`Drive subfolder search failed: ${searchRes.status}`);
+  }
+
+  const searchData = await searchRes.json();
+  if (searchData.files && searchData.files.length > 0) {
+    return searchData.files[0].id;
+  }
+
+  const createRes = await driveRequest(accessToken, "/files", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: folderName,
+      mimeType: "application/vnd.google-apps.folder",
+      parents: [parentFolderId],
+    }),
+  });
+
+  if (!createRes.ok) {
+    throw new Error(`Drive subfolder create failed: ${createRes.status}`);
+  }
+
+  const createData = await createRes.json();
+  return createData.id;
+}
+
+/**
+ * バイナリファイル(画像等)を新規作成
+ * 戻り値: Google Drive ファイルID
+ */
+export async function uploadBinaryFile(
+  accessToken: string,
+  folderId: string,
+  fileName: string,
+  data: ArrayBuffer | Uint8Array,
+  mimeType: string
+): Promise<string> {
+  const boundary = "-------accounting-app-binary-boundary";
+  const metadata = JSON.stringify({
+    name: fileName,
+    parents: [folderId],
+  });
+
+  // multipart body をバイナリ対応で構築
+  const encoder = new TextEncoder();
+  const metadataPart = encoder.encode(
+    `--${boundary}\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+    metadata +
+    `\r\n--${boundary}\r\n` +
+    `Content-Type: ${mimeType}\r\n\r\n`
+  );
+  const bodyEnd = encoder.encode(`\r\n--${boundary}--`);
+
+  const dataBytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const fullBody = new Uint8Array(metadataPart.length + dataBytes.length + bodyEnd.length);
+  fullBody.set(metadataPart, 0);
+  fullBody.set(dataBytes, metadataPart.length);
+  fullBody.set(bodyEnd, metadataPart.length + dataBytes.length);
+
+  const url = `${DRIVE_UPLOAD_BASE}/files?uploadType=multipart`;
+  const res = await driveRequest(accessToken, url, {
+    method: "POST",
+    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+    body: fullBody as BodyInit,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Drive binary upload failed: ${res.status} ${errText}`);
+  }
+  const json = await res.json();
+  return json.id;
+}
+
+/**
+ * ファイル削除
+ */
+export async function deleteFile(
+  accessToken: string,
+  fileId: string
+): Promise<void> {
+  const res = await driveRequest(accessToken, `/files/${fileId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    throw new Error(`Drive delete failed: ${res.status}`);
+  }
+}

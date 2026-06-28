@@ -4,7 +4,8 @@ import { useState, useMemo } from "react";
 import { Transaction } from "@/lib/types";
 import { ALL_ACCOUNT_LABELS } from "@/lib/data/accountOptions";
 import TransactionFilters, { TransactionFilterState } from "./TransactionFilters";
-import { Receipt, Trash2, Pencil } from "lucide-react";
+import { Receipt, Trash2, Pencil, Paperclip } from "lucide-react";
+import ReceiptPreviewModal from "./ReceiptPreviewModal";
 import { deleteTransaction } from "@/lib/actions/transactions";
 import EditTransactionModal from "./EditTransactionModal";
 import ImportCsvModal from "./ImportCsvModal";
@@ -37,6 +38,7 @@ export default function TransactionsPage({ transactions }: Props) {
   });
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [previewReceiptId, setPreviewReceiptId] = useState<string | null>(null);
 
   // フィルタリング
   const filteredTransactions = useMemo(() => {
@@ -199,7 +201,7 @@ export default function TransactionsPage({ transactions }: Props) {
               </thead>
               <tbody>
                 {filteredTransactions.map((t) => (
-                  <TransactionRow key={t.id} transaction={t} onEdit={() => setEditingTransaction(t)} />
+                  <TransactionRow key={t.id} transaction={t} onEdit={() => setEditingTransaction(t)} onPreviewReceipt={(id) => setPreviewReceiptId(id)} />
                 ))}
               </tbody>
             </table>
@@ -208,7 +210,7 @@ export default function TransactionsPage({ transactions }: Props) {
           {/* モバイル: カード */}
           <div className="md:hidden space-y-2">
             {filteredTransactions.map((t) => (
-              <TransactionCard key={t.id} transaction={t} onEdit={() => setEditingTransaction(t)} />
+              <TransactionCard key={t.id} transaction={t} onEdit={() => setEditingTransaction(t)} onPreviewReceipt={(id) => setPreviewReceiptId(id)} />
             ))}
           </div>
         </>
@@ -224,11 +226,19 @@ export default function TransactionsPage({ transactions }: Props) {
 
       {/* CSV取込モーダル */}
       {importOpen && <ImportCsvModal onClose={() => setImportOpen(false)} />}
+
+      {/* レシートプレビュー */}
+      {previewReceiptId && (
+        <ReceiptPreviewModal
+          fileId={previewReceiptId}
+          onClose={() => setPreviewReceiptId(null)}
+        />
+      )}
     </div>
   );
 }
 
-function TransactionRow({ transaction, onEdit }: { transaction: Transaction; onEdit: () => void }) {
+function TransactionRow({ transaction, onEdit, onPreviewReceipt }: { transaction: Transaction; onEdit: () => void; onPreviewReceipt: (fileId: string) => void }) {
   const isIncome = transaction.type === "income";
   const accountLabel = transaction.accountCode
     ? ALL_ACCOUNT_LABELS[transaction.accountCode]
@@ -278,6 +288,15 @@ function TransactionRow({ transaction, onEdit }: { transaction: Transaction; onE
       </td>
       <td className="px-4 py-3 text-right">
         <div className="flex gap-1 justify-end">
+          {transaction.receiptUrl && (
+            <button
+              onClick={() => onPreviewReceipt(transaction.receiptUrl!)}
+              className="p-1.5 rounded hover:bg-[var(--bg-overlay)] text-[var(--accent)] hover:text-[var(--text-primary)] transition"
+              title="レシート画像"
+            >
+              <Paperclip className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             onClick={onEdit}
             className="p-1.5 rounded hover:bg-[var(--bg-overlay)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition"
@@ -298,7 +317,7 @@ function TransactionRow({ transaction, onEdit }: { transaction: Transaction; onE
   );
 }
 
-function TransactionCard({ transaction, onEdit }: { transaction: Transaction; onEdit: () => void }) {
+function TransactionCard({ transaction, onEdit, onPreviewReceipt }: { transaction: Transaction; onEdit: () => void; onPreviewReceipt: (fileId: string) => void }) {
   const isIncome = transaction.type === "income";
   const accountLabel = transaction.accountCode
     ? ALL_ACCOUNT_LABELS[transaction.accountCode]
@@ -351,6 +370,15 @@ function TransactionCard({ transaction, onEdit }: { transaction: Transaction; on
           })}
         </div>
         <div className="flex gap-1">
+          {transaction.receiptUrl && (
+            <button
+              onClick={() => onPreviewReceipt(transaction.receiptUrl!)}
+              className="p-1.5 rounded text-[var(--accent)] hover:text-[var(--text-primary)] transition"
+              title="レシート画像"
+            >
+              <Paperclip className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             onClick={onEdit}
             className="p-1.5 rounded text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition"

@@ -66,6 +66,7 @@ export default function AddTransactionForm() {
     accountCode: string;
   } | null>(null);
   const [accountCode, setAccountCode] = useState<string>("");
+  const [receiptImage, setReceiptImage] = useState<{ base64: string; mimeType: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // フォームのkey(OCR結果を反映させるためにフォームを再マウントする)
@@ -78,6 +79,7 @@ export default function AddTransactionForm() {
     setType("expense");
     setSettlementStatus("settled");
     setSelectedTags([]);
+    setReceiptImage(null);
     setError(null);
     setOcrPreview(null);
     setOcrResult(null);
@@ -148,6 +150,9 @@ export default function AddTransactionForm() {
     // Blob → base64
     const base64 = await blobToBase64(uploadFile);
     const mediaType = "image/jpeg";
+
+    // レシート画像をstateに保持(取引保存時にDriveへアップロード)
+    setReceiptImage({ base64, mimeType: mediaType });
 
     setOcrProgress(70);
 
@@ -263,6 +268,12 @@ export default function AddTransactionForm() {
   }
 
     function handleSubmit(formData: FormData) {
+      // レシート画像をFormDataに添付(あれば)
+      if (receiptImage) {
+        formData.append("receiptBase64", receiptImage.base64);
+        formData.append("receiptMimeType", receiptImage.mimeType);
+      }
+
     setError(null);
     selectedTags.forEach((tagId) => formData.append("tagIds", tagId));
     startTransition(async () => {

@@ -175,6 +175,9 @@ export interface Transaction {
   // 取込元データのハッシュ(CSV取込時の重複検知用)
   rawHash?: string;
 
+  // レシート画像のGoogle Drive ファイルID(電子帳簿保存法対応)
+  receiptUrl?: string;
+
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

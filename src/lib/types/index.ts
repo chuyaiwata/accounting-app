@@ -382,10 +382,22 @@ export interface AccountMaster {
   note?: string;
 }
 
+export interface GmailWhitelistEntry {
+  id: ID;
+  name: string;
+  matchType: "from" | "subject";
+  matchValue: string;
+  defaultAccountCode?: string;
+  defaultCategory?: TransactionCategory;
+  defaultTagIds: ID[];
+  enabled: boolean;
+}
+
 export interface AppSettings {
   businessTags: BusinessTag[];
   apportionRules: ApportionRule[];
   accounts: AccountMaster[];
+  gmailWhitelist: GmailWhitelistEntry[];
   updatedAt: Timestamp;
 }
 

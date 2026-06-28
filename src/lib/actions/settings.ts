@@ -55,6 +55,10 @@ export async function loadSettings(): Promise<AppSettings> {
         parsed.accounts && parsed.accounts.length > 0
           ? parsed.accounts
           : DEFAULT_SETTINGS.accounts,
+      gmailWhitelist:
+        parsed.gmailWhitelist && parsed.gmailWhitelist.length > 0
+          ? parsed.gmailWhitelist
+          : DEFAULT_SETTINGS.gmailWhitelist,
       updatedAt: parsed.updatedAt || DEFAULT_SETTINGS.updatedAt,
     };
   } catch (e) {

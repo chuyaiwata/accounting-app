@@ -5,6 +5,7 @@ import type { ImportRow, TransactionType, TransactionCategory } from "@/lib/type
 import { parseUfjBankCsv } from "@/lib/import/parseUfjBank";
 import { parseUfjNicosCsv } from "@/lib/import/parseUfjNicos";
 import { parseSuicaScreenshot } from "@/lib/actions/parseSuicaScreenshot";
+import { parseGmailEmails } from "@/lib/actions/parseGmailEmails";
 import { detectDuplicates, importTransactions } from "@/lib/actions/imports";
 import { EXPENSE_ACCOUNTS, INCOME_ACCOUNTS, ALL_ACCOUNT_LABELS } from "@/lib/data/accountOptions";
 import { X, Upload, Loader2, AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Layers } from "lucide-react";
@@ -25,7 +26,7 @@ const CATEGORY_OPTIONS: { value: TransactionCategory; label: string }[] = [
   { value: "fixed_asset", label: "固定資産" },
 ];
 
-type SourceType = "ufj_bank" | "ufj_nicos" | "suica_screenshot";
+type SourceType = "ufj_bank" | "ufj_nicos" | "suica_screenshot" | "gmail";
 
 interface Props {
   onClose: () => void;
@@ -38,6 +39,8 @@ export default function ImportCsvModal({ onClose }: Props) {
   const [isPending, startTransition] = useTransition();
   const [viewMode, setViewMode] = useState<"individual" | "grouped">("individual");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [gmailDaysAgo, setGmailDaysAgo] = useState<number>(90);
+  const [gmailLoading, setGmailLoading] = useState(false);
   const [importResult, setImportResult] = useState<{
     ok: boolean;
     imported: number;
@@ -52,6 +55,50 @@ export default function ImportCsvModal({ onClose }: Props) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  const handleGmailSearch = async () => {
+    setParseError(null);
+    setRows([]);
+    setImportResult(null);
+    setGmailLoading(true);
+
+    try {
+      const result = await parseGmailEmails(gmailDaysAgo);
+      if (!result.ok) {
+        setParseError(result.error);
+        setGmailLoading(false);
+        return;
+      }
+
+      if (result.rows.length === 0) {
+        setParseError("対象メールが見つかりませんでした(処理: " + result.processedCount + "件)");
+        setGmailLoading(false);
+        return;
+      }
+
+      const dups = await detectDuplicates(result.rows);
+      const dupMap = new Map(dups.map((d) => [d.rawHash, d.duplicateId]));
+      const withDup = result.rows.map((r) => {
+        const dupId = dupMap.get(r.rawHash);
+        if (dupId) {
+          return {
+            ...r,
+            include: false,
+            duplicateOfId: dupId,
+            warning: (r.warning ? r.warning + " / " : "") + "既存取引と重複",
+          };
+        }
+        return r;
+      });
+
+      setRows(withDup);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Gmail取込エラー";
+      setParseError(msg);
+    } finally {
+      setGmailLoading(false);
+    }
+  };
 
   const handleSuicaFiles = async (files: FileList) => {
     setParseError(null);
@@ -222,11 +269,49 @@ export default function ImportCsvModal({ onClose }: Props) {
               <option value="ufj_bank">三菱UFJ銀行</option>
               <option value="ufj_nicos">三菱UFJニコス</option>
               <option value="suica_screenshot">モバイルSuica (スクショ)</option>
+              <option value="gmail">Gmail (請求書メール)</option>
             </select>
           </div>
 
-          {/* ファイル選択 */}
-          {rows.length === 0 && (
+          {/* Gmail検索UI */}
+          {rows.length === 0 && source === "gmail" && (
+            <div className="rounded-xl p-6" style={{ background: "var(--bg-overlay)", border: "1px dashed var(--border-default)" }}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
+                    検索期間
+                  </label>
+                  <select
+                    value={gmailDaysAgo}
+                    onChange={(e) => setGmailDaysAgo(Number(e.target.value))}
+                    className="w-full md:w-64 px-3 py-2.5 text-sm"
+                  >
+                    <option value={30}>過去30日</option>
+                    <option value={60}>過去60日</option>
+                    <option value={90}>過去90日</option>
+                    <option value={180}>過去180日</option>
+                    <option value={365}>過去365日</option>
+                  </select>
+                </div>
+                <button
+                  onClick={handleGmailSearch}
+                  disabled={gmailLoading}
+                  className="w-full md:w-auto px-6 py-3 rounded-lg text-sm font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: "var(--accent)", color: "white" }}
+                >
+                  {gmailLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {gmailLoading ? "検索中..." : "Gmailを検索して取込候補を抽出"}
+                </button>
+                <p className="text-[11px] text-[var(--text-tertiary)]">
+                  設定タブのホワイトリストに登録されたサービスからのメールを検索。
+                  Claude APIで請求書/領収書を判定し、PDF添付があれば自動保管。
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ファイル選択(CSV / Suicaスクショ) */}
+          {rows.length === 0 && source !== "gmail" && (
             <div>
               <label
                 className="flex flex-col items-center justify-center w-full px-6 py-10 rounded-xl cursor-pointer transition"

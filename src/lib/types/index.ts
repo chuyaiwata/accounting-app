@@ -398,6 +398,7 @@ export interface AppSettings {
   apportionRules: ApportionRule[];
   accounts: AccountMaster[];
   gmailWhitelist: GmailWhitelistEntry[];
+  bankAccount?: BankAccountInfo;
   updatedAt: Timestamp;
 }
 
@@ -435,4 +436,13 @@ export interface ImportRow {
   include: boolean;          // 取込対象か
   duplicateOfId?: ID;        // 重複の場合の既存ID
   warning?: string;          // 警告メッセージ
+}
+
+export interface BankAccountInfo {
+  bankName: string;
+  branchName: string;
+  accountType: "ordinary" | "current";
+  accountNumber: string;
+  accountHolder: string;
+  accountHolderKana?: string;
 }

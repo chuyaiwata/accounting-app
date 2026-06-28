@@ -8,6 +8,7 @@ import type {
   AccountMaster,
   AccountKind,
   GmailWhitelistEntry,
+  BankAccountInfo,
 } from "@/lib/types";
 import { saveSettings } from "@/lib/actions/settings";
 import { EXPENSE_ACCOUNTS } from "@/lib/data/accountOptions";
@@ -40,6 +41,7 @@ export default function SettingsPage({ initialSettings }: Props) {
   const [rules, setRules] = useState<ApportionRule[]>(initialSettings.apportionRules);
   const [accounts, setAccounts] = useState<AccountMaster[]>(initialSettings.accounts);
   const [gmailWhitelist, setGmailWhitelist] = useState<GmailWhitelistEntry[]>(initialSettings.gmailWhitelist || []);
+  const [bankAccount, setBankAccount] = useState<BankAccountInfo | undefined>(initialSettings.bankAccount);
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
 
@@ -51,6 +53,7 @@ export default function SettingsPage({ initialSettings }: Props) {
         apportionRules: rules,
         accounts,
         gmailWhitelist,
+        bankAccount,
       });
       setSaveStatus(res.ok ? "saved" : "error");
       setTimeout(() => setSaveStatus("idle"), 3000);

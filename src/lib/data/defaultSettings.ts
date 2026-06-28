@@ -1,4 +1,4 @@
-import type { AppSettings, BusinessTag, AccountMaster, GmailWhitelistEntry } from "@/lib/types";
+import type { AppSettings, BusinessTag, AccountMaster, GmailWhitelistEntry, BankAccountInfo } from "@/lib/types";
 
 export const DEFAULT_BUSINESS_TAGS: BusinessTag[] = [
   { id: "pbs4", name: "PBS4", color: "#4f8bff" },
@@ -58,10 +58,20 @@ export const DEFAULT_GMAIL_WHITELIST: GmailWhitelistEntry[] = [
   { id: "rakuten", name: "楽天", matchType: "from", matchValue: "rakuten.co.jp", defaultAccountCode: "530", defaultCategory: "business", defaultTagIds: [], enabled: true },
 ];
 
+
+export const DEFAULT_BANK_ACCOUNT: BankAccountInfo = {
+  bankName: "三菱UFJ銀行",
+  branchName: "三軒茶屋支店",
+  accountType: "ordinary",
+  accountNumber: "3843219",
+  accountHolder: "イワタ チユウヤ",
+};
+
 export const DEFAULT_SETTINGS: AppSettings = {
   businessTags: DEFAULT_BUSINESS_TAGS,
   apportionRules: [],
   accounts: DEFAULT_ACCOUNTS,
   gmailWhitelist: DEFAULT_GMAIL_WHITELIST,
+  bankAccount: DEFAULT_BANK_ACCOUNT,
   updatedAt: new Date(0).toISOString(),
 };

@@ -255,7 +255,7 @@ export default function ImportCsvModal({ onClose }: Props) {
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-5">
+        <div className="px-6 py-5 space-y-5 pb-24 md:pb-5">
           {/* ソース選択 */}
           <div>
             <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
@@ -428,7 +428,7 @@ export default function ImportCsvModal({ onClose }: Props) {
               </div>
 
               {viewMode === "individual" ? (
-                <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                <div className="space-y-2">
                   {rows.map((row, idx) => (
                     <ImportRowCard
                       key={row.rawHash}
@@ -672,7 +672,7 @@ function GroupedView({
   );
 
   return (
-    <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+    <div className="space-y-2">
       {sortedGroups.map(([name, group]) => {
         const isExpanded = expandedGroups.has(name);
         const totalAmount = group.rows.reduce((sum, r) => sum + r.amount, 0);

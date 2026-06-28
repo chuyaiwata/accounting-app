@@ -71,7 +71,7 @@ function classifyNicos(storeName: string): {
   }
 
   // サブスク・SaaS(事業の可能性高)
-  if (/APPLE|ADOBE|GITHUB|VERCEL|CLAUDE|OPENAI|FIGMA|NOTION|SLACK|GOOGLE|MICROSOFT/i.test(n)) {
+  if (/APPLE|ＡＰＰＬＥ|ADOBE|ＡＤＯＢＥ|GITHUB|ＧＩＴＨＵＢ|VERCEL|CLAUDE|OPENAI|FIGMA|NOTION|SLACK|ＳＬＡＣＫ|GOOGLE|ＧＯＯＧＬＥ|MICROSOFT|ＭＩＣＲＯＳＯＦＴ/i.test(n)) {
     return { category: "business", accountCode: "525", include: true };
   }
 

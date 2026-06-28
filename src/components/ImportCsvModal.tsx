@@ -6,7 +6,7 @@ import { parseUfjBankCsv } from "@/lib/import/parseUfjBank";
 import { parseUfjNicosCsv } from "@/lib/import/parseUfjNicos";
 import { detectDuplicates, importTransactions } from "@/lib/actions/imports";
 import { EXPENSE_ACCOUNTS, INCOME_ACCOUNTS, ALL_ACCOUNT_LABELS } from "@/lib/data/accountOptions";
-import { X, Upload, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { X, Upload, Loader2, AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Layers } from "lucide-react";
 
 const TAGS = [
   { id: "pbs4", name: "PBS4", color: "#4f8bff" },
@@ -35,6 +35,8 @@ export default function ImportCsvModal({ onClose }: Props) {
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [viewMode, setViewMode] = useState<"individual" | "grouped">("individual");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [importResult, setImportResult] = useState<{
     ok: boolean;
     imported: number;
@@ -220,7 +222,31 @@ export default function ImportCsvModal({ onClose }: Props) {
                 <p className="text-sm text-[var(--text-secondary)]">
                   {totalCount}件検出 / {selectedCount}件取込予定
                 </p>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap items-center">
+                  {/* 表示モード切替 */}
+                  <div className="flex gap-1 rounded-lg p-1" style={{ background: "var(--bg-overlay)" }}>
+                    <button
+                      onClick={() => setViewMode("individual")}
+                      className="px-2.5 py-1 rounded text-xs font-medium transition"
+                      style={{
+                        background: viewMode === "individual" ? "var(--bg-elevated)" : "transparent",
+                        color: viewMode === "individual" ? "var(--text-primary)" : "var(--text-tertiary)",
+                      }}
+                    >
+                      個別
+                    </button>
+                    <button
+                      onClick={() => setViewMode("grouped")}
+                      className="px-2.5 py-1 rounded text-xs font-medium transition flex items-center gap-1"
+                      style={{
+                        background: viewMode === "grouped" ? "var(--bg-elevated)" : "transparent",
+                        color: viewMode === "grouped" ? "var(--text-primary)" : "var(--text-tertiary)",
+                      }}
+                    >
+                      <Layers className="w-3 h-3" />
+                      店名別
+                    </button>
+                  </div>
                   <button
                     onClick={() => toggleAll(true)}
                     className="px-3 py-1.5 rounded-lg text-xs font-medium transition"
@@ -244,15 +270,37 @@ export default function ImportCsvModal({ onClose }: Props) {
                 </div>
               </div>
 
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-                {rows.map((row, idx) => (
-                  <ImportRowCard
-                    key={row.rawHash}
-                    row={row}
-                    onChange={(patch) => updateRow(idx, patch)}
-                  />
-                ))}
-              </div>
+              {viewMode === "individual" ? (
+                <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                  {rows.map((row, idx) => (
+                    <ImportRowCard
+                      key={row.rawHash}
+                      row={row}
+                      onChange={(patch) => updateRow(idx, patch)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <GroupedView
+                  rows={rows}
+                  expandedGroups={expandedGroups}
+                  onToggleExpand={(name) => {
+                    const next = new Set(expandedGroups);
+                    if (next.has(name)) next.delete(name);
+                    else next.add(name);
+                    setExpandedGroups(next);
+                  }}
+                  onUpdate={updateRow}
+                  onBulkToggle={(name, include) => {
+                    setRows(rows.map((r) => {
+                      if (r.description === name && !r.duplicateOfId) {
+                        return { ...r, include };
+                      }
+                      return r;
+                    }));
+                  }}
+                />
+              )}
 
               {/* インポートボタン */}
               <div className="flex gap-2 pt-2">
@@ -432,6 +480,130 @@ function ImportRowCard({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function GroupedView({
+  rows,
+  expandedGroups,
+  onToggleExpand,
+  onUpdate,
+  onBulkToggle,
+}: {
+  rows: ImportRow[];
+  expandedGroups: Set<string>;
+  onToggleExpand: (name: string) => void;
+  onUpdate: (idx: number, patch: Partial<ImportRow>) => void;
+  onBulkToggle: (name: string, include: boolean) => void;
+}) {
+  // 店名でグループ化
+  const groups = new Map<string, { rows: ImportRow[]; indices: number[] }>();
+  rows.forEach((row, idx) => {
+    const key = row.description;
+    if (!groups.has(key)) {
+      groups.set(key, { rows: [], indices: [] });
+    }
+    const g = groups.get(key)!;
+    g.rows.push(row);
+    g.indices.push(idx);
+  });
+
+  // 件数の多い順にソート
+  const sortedGroups = Array.from(groups.entries()).sort(
+    (a, b) => b[1].rows.length - a[1].rows.length
+  );
+
+  return (
+    <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+      {sortedGroups.map(([name, group]) => {
+        const isExpanded = expandedGroups.has(name);
+        const totalAmount = group.rows.reduce((sum, r) => sum + r.amount, 0);
+        const includedCount = group.rows.filter((r) => r.include).length;
+        const totalCount = group.rows.length;
+        const hasDuplicate = group.rows.some((r) => r.duplicateOfId);
+
+        return (
+          <div
+            key={name}
+            className="rounded-lg"
+            style={{
+              background: "var(--bg-overlay)",
+              border: hasDuplicate
+                ? "1px solid rgba(248, 113, 113, 0.3)"
+                : "1px solid var(--border-subtle)",
+            }}
+          >
+            {/* グループヘッダー */}
+            <div className="p-3 flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => onToggleExpand(name)}
+                className="flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition flex-1 min-w-0"
+              >
+                {isExpanded ? (
+                  <ChevronDown className="w-4 h-4 flex-shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 flex-shrink-0" />
+                )}
+                <span className="text-sm font-medium truncate text-left">
+                  {name}
+                </span>
+                <span className="text-xs text-[var(--text-tertiary)] flex-shrink-0">
+                  × {totalCount}件
+                </span>
+              </button>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-xs tabular text-[var(--text-tertiary)]">
+                  ¥{totalAmount.toLocaleString()}
+                </span>
+                <span className="text-xs text-[var(--accent)]">
+                  {includedCount}/{totalCount}
+                </span>
+              </div>
+
+              <div className="flex gap-1 w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={() => onBulkToggle(name, true)}
+                  className="flex-1 md:flex-initial px-2.5 py-1 rounded text-[10px] font-medium transition"
+                  style={{
+                    background: "var(--bg-elevated)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  全件取込
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onBulkToggle(name, false)}
+                  className="flex-1 md:flex-initial px-2.5 py-1 rounded text-[10px] font-medium transition"
+                  style={{
+                    background: "var(--bg-elevated)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  全件除外
+                </button>
+              </div>
+            </div>
+
+            {/* 展開時の個別行 */}
+            {isExpanded && (
+              <div className="px-3 pb-3 space-y-2 border-t" style={{ borderColor: "var(--border-subtle)" }}>
+                {group.rows.map((row, i) => (
+                  <ImportRowCard
+                    key={row.rawHash}
+                    row={row}
+                    onChange={(patch) => onUpdate(group.indices[i], patch)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

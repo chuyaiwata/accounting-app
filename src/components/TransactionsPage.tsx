@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { Transaction } from "@/lib/types";
 import { ALL_ACCOUNT_LABELS } from "@/lib/data/accountOptions";
 import TransactionFilters, { TransactionFilterState } from "./TransactionFilters";
-import { Receipt, Trash2, Pencil, Paperclip } from "lucide-react";
+import { Receipt, Trash2, Pencil, Paperclip, AlertTriangle } from "lucide-react";
 import ReceiptPreviewModal from "./ReceiptPreviewModal";
 import { deleteTransaction } from "@/lib/actions/transactions";
 import EditTransactionModal from "./EditTransactionModal";
@@ -288,6 +288,16 @@ function TransactionRow({ transaction, onEdit, onPreviewReceipt }: { transaction
       </td>
       <td className="px-4 py-3 text-right">
         <div className="flex gap-1 justify-end">
+          {!transaction.receiptUrl &&
+            transaction.category === "business" &&
+            transaction.type === "expense" && (
+              <span
+                className="p-1.5 text-[#fbbf24] opacity-60"
+                title="領収書未添付(電子帳簿保存法上の保管推奨)"
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+              </span>
+            )}
           {transaction.receiptUrl && (
             <button
               onClick={() => onPreviewReceipt(transaction.receiptUrl!)}
@@ -370,6 +380,16 @@ function TransactionCard({ transaction, onEdit, onPreviewReceipt }: { transactio
           })}
         </div>
         <div className="flex gap-1">
+          {!transaction.receiptUrl &&
+            transaction.category === "business" &&
+            transaction.type === "expense" && (
+              <span
+                className="p-1.5 text-[#fbbf24] opacity-60"
+                title="領収書未添付"
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+              </span>
+            )}
           {transaction.receiptUrl && (
             <button
               onClick={() => onPreviewReceipt(transaction.receiptUrl!)}

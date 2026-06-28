@@ -10,7 +10,8 @@ import type {
   SettlementStatus,
 } from "@/lib/types";
 import { EXPENSE_ACCOUNTS, INCOME_ACCOUNTS } from "@/lib/data/accountOptions";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Paperclip, Upload, Trash2 } from "lucide-react";
+import ReceiptPreviewModal from "./ReceiptPreviewModal";
 
 const CATEGORY_OPTIONS: { value: TransactionCategory; label: string }[] = [
   { value: "business", label: "通常取引" },
@@ -57,6 +58,13 @@ export default function EditTransactionModal({ transaction, onClose }: Props) {
     transaction.taxDeductionType || ""
   );
 
+  // レシート画像
+  const [receiptUrl, setReceiptUrl] = useState<string | undefined>(transaction.receiptUrl);
+  const [pendingReceipt, setPendingReceipt] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
+  const [receiptAction, setReceiptAction] = useState<"add" | "delete" | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
   // Escキーで閉じる
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -65,6 +73,69 @@ export default function EditTransactionModal({ transaction, onClose }: Props) {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, [onClose]);
+
+  async function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const original = e.target.files?.[0];
+    if (!original) return;
+
+    setError(null);
+    setReceiptLoading(true);
+
+    let file: Blob = original;
+    let mimeType = "image/jpeg";
+
+    const isHeic =
+      /\.(heic|heif)$/i.test(original.name) ||
+      original.type === "image/heic" ||
+      original.type === "image/heif";
+
+    if (isHeic) {
+      try {
+        const heic2any = (await import("heic2any")).default;
+        const converted = await heic2any({
+          blob: original,
+          toType: "image/jpeg",
+          quality: 0.85,
+        });
+        file = Array.isArray(converted) ? converted[0] : converted;
+      } catch (err) {
+        console.error("HEIC conversion error:", err);
+        setError("HEIC画像の変換に失敗しました");
+        setReceiptLoading(false);
+        return;
+      }
+    } else if (original.type === "image/png") {
+      mimeType = "image/png";
+    } else if (original.type === "image/webp") {
+      mimeType = "image/webp";
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const base64 = dataUrl.split(",")[1];
+      setPendingReceipt({ base64, mimeType, preview: dataUrl });
+      setReceiptAction("add");
+      setReceiptLoading(false);
+    };
+    reader.onerror = () => {
+      setError("画像の読み込みに失敗しました");
+      setReceiptLoading(false);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleDeleteReceipt() {
+    if (!confirm("レシート画像を削除します。よろしいですか?")) return;
+    setReceiptUrl(undefined);
+    setPendingReceipt(null);
+    setReceiptAction("delete");
+  }
+
+  function handleCancelPending() {
+    setPendingReceipt(null);
+    setReceiptAction(null);
+  }
 
   const toggleTag = (tagId: string) => {
     setSelectedTags((prev) =>
@@ -85,6 +156,15 @@ export default function EditTransactionModal({ transaction, onClose }: Props) {
     }
     formData.delete("tagIds");
     selectedTags.forEach((tag) => formData.append("tagIds", tag));
+
+    // レシート画像情報を FormData に追加
+    if (receiptAction === "add" && pendingReceipt) {
+      formData.set("receiptAction", "add");
+      formData.set("receiptBase64", pendingReceipt.base64);
+      formData.set("receiptMimeType", pendingReceipt.mimeType);
+    } else if (receiptAction === "delete") {
+      formData.set("receiptAction", "delete");
+    }
 
     startTransition(async () => {
       const result = await updateTransaction(transaction.id, formData);
@@ -424,6 +504,103 @@ export default function EditTransactionModal({ transaction, onClose }: Props) {
             </div>
           )}
 
+          {/* レシート画像 */}
+          <div>
+            <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-2 font-medium">
+              レシート画像(電子帳簿保存法対応)
+            </label>
+
+            {/* 新規アップロード待機中 */}
+            {pendingReceipt && (
+              <div className="rounded-lg p-3 mb-2" style={{ background: "var(--bg-overlay)", border: "1px solid var(--accent)" }}>
+                <p className="text-[11px] text-[var(--accent)] mb-2">保存時にアップロードされます</p>
+                <img src={pendingReceipt.preview} alt="新規レシート" className="max-h-48 rounded mb-2" />
+                <button
+                  type="button"
+                  onClick={handleCancelPending}
+                  className="text-xs px-3 py-1.5 rounded text-[var(--text-secondary)]"
+                  style={{ background: "var(--bg-elevated)" }}
+                >
+                  キャンセル
+                </button>
+              </div>
+            )}
+
+            {/* 既存画像あり(差し替えor削除可能) */}
+            {!pendingReceipt && receiptUrl && receiptAction !== "delete" && (
+              <div className="rounded-lg p-3 mb-2" style={{ background: "var(--bg-overlay)" }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Paperclip className="w-4 h-4 text-[var(--accent)]" />
+                  <span className="text-xs text-[var(--text-secondary)]">レシート画像が紐付いています</span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(true)}
+                    className="text-xs px-3 py-1.5 rounded text-[var(--text-primary)]"
+                    style={{ background: "var(--bg-elevated)" }}
+                  >
+                    プレビュー
+                  </button>
+                  <label
+                    className="text-xs px-3 py-1.5 rounded cursor-pointer flex items-center gap-1"
+                    style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    差し替え
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
+                      onChange={handleReceiptUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleDeleteReceipt}
+                    className="text-xs px-3 py-1.5 rounded flex items-center gap-1"
+                    style={{ background: "var(--bg-elevated)", color: "#f87171" }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    削除
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 既存画像なし(削除直後含む) */}
+            {!pendingReceipt && (!receiptUrl || receiptAction === "delete") && (
+              <div>
+                {receiptAction === "delete" && (
+                  <p className="text-[11px] text-[#f87171] mb-2">保存時に既存画像が削除されます</p>
+                )}
+                <label
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg cursor-pointer transition"
+                  style={{
+                    background: "var(--bg-overlay)",
+                    border: "1px dashed var(--border-default)",
+                  }}
+                >
+                  {receiptLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[var(--text-tertiary)]" />
+                  ) : (
+                    <Upload className="w-4 h-4 text-[var(--text-tertiary)]" />
+                  )}
+                  <span className="text-sm text-[var(--text-secondary)]">
+                    {receiptLoading ? "読み込み中..." : "レシート画像を追加"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
+                    onChange={handleReceiptUpload}
+                    className="hidden"
+                    disabled={receiptLoading}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
           {/* 保存/キャンセル */}
           <div className="flex gap-2 pt-2">
             <button
@@ -452,6 +629,14 @@ export default function EditTransactionModal({ transaction, onClose }: Props) {
           </div>
         </form>
       </div>
+
+      {/* レシート画像プレビュー */}
+      {showPreview && receiptUrl && (
+        <ReceiptPreviewModal
+          fileId={receiptUrl}
+          onClose={() => setShowPreview(false)}
+        />
+      )}
     </div>
   );
 }

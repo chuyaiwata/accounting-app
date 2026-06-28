@@ -103,6 +103,7 @@ export async function importTransactions(
           paymentMethod: r.paymentMethod,
           note: r.note,
           rawHash: r.rawHash,
+          receiptUrl: r.receiptUrl,
           createdAt: now,
           updatedAt: now,
         };

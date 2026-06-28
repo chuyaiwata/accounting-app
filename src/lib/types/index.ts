@@ -417,6 +417,7 @@ export interface ImportRow {
   tagIds: ID[];
   paymentMethod?: string;
   note?: string;
+  receiptUrl?: string;
 
   // 取込制御
   include: boolean;          // 取込対象か

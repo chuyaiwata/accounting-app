@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import type { ImportRow, TransactionType, TransactionCategory } from "@/lib/types";
 import { parseUfjBankCsv } from "@/lib/import/parseUfjBank";
 import { parseUfjNicosCsv } from "@/lib/import/parseUfjNicos";
+import { parseSuicaScreenshot } from "@/lib/actions/parseSuicaScreenshot";
 import { detectDuplicates, importTransactions } from "@/lib/actions/imports";
 import { EXPENSE_ACCOUNTS, INCOME_ACCOUNTS, ALL_ACCOUNT_LABELS } from "@/lib/data/accountOptions";
 import { X, Upload, Loader2, AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Layers } from "lucide-react";
@@ -24,7 +25,7 @@ const CATEGORY_OPTIONS: { value: TransactionCategory; label: string }[] = [
   { value: "fixed_asset", label: "固定資産" },
 ];
 
-type SourceType = "ufj_bank" | "ufj_nicos";
+type SourceType = "ufj_bank" | "ufj_nicos" | "suica_screenshot";
 
 interface Props {
   onClose: () => void;
@@ -51,6 +52,58 @@ export default function ImportCsvModal({ onClose }: Props) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  const handleSuicaFiles = async (files: FileList) => {
+    setParseError(null);
+    setRows([]);
+    setImportResult(null);
+
+    try {
+      const imageData: { base64: string; mimeType: string }[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const buf = await file.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = "";
+        for (let j = 0; j < bytes.length; j++) {
+          binary += String.fromCharCode(bytes[j]);
+        }
+        const base64 = btoa(binary);
+        imageData.push({ base64, mimeType: file.type || "image/png" });
+      }
+
+      const result = await parseSuicaScreenshot(imageData);
+      if (!result.ok) {
+        setParseError(result.error);
+        return;
+      }
+
+      if (result.rows.length === 0) {
+        setParseError("取込可能な行が見つかりませんでした");
+        return;
+      }
+
+      const dups = await detectDuplicates(result.rows);
+      const dupMap = new Map(dups.map((d) => [d.rawHash, d.duplicateId]));
+      const withDup = result.rows.map((r) => {
+        const dupId = dupMap.get(r.rawHash);
+        if (dupId) {
+          return {
+            ...r,
+            include: false,
+            duplicateOfId: dupId,
+            warning: (r.warning ? r.warning + " / " : "") + "既存取引と重複",
+          };
+        }
+        return r;
+      });
+
+      setRows(withDup);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Suica画像解析エラー";
+      setParseError(msg);
+    }
+  };
 
   const handleFile = async (file: File) => {
     setParseError(null);
@@ -168,6 +221,7 @@ export default function ImportCsvModal({ onClose }: Props) {
             >
               <option value="ufj_bank">三菱UFJ銀行</option>
               <option value="ufj_nicos">三菱UFJニコス</option>
+              <option value="suica_screenshot">モバイルSuica (スクショ)</option>
             </select>
           </div>
 
@@ -183,21 +237,39 @@ export default function ImportCsvModal({ onClose }: Props) {
               >
                 <Upload className="w-8 h-8 text-[var(--text-tertiary)] mb-2" />
                 <p className="text-sm font-medium text-[var(--text-secondary)]">
-                  CSVファイルをアップロード
+                  {source === "suica_screenshot" ? "Suicaスクショをアップロード(複数可)" : "CSVファイルをアップロード"}
                 </p>
                 <p className="text-xs text-[var(--text-tertiary)] mt-1">
                   クリックして選択
                 </p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFile(file);
-                  }}
-                />
+                {source === "suica_screenshot" ? (
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) handleSuicaFiles(files);
+                    }}
+                  />
+                ) : (
+                  <input
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFile(file);
+                    }}
+                  />
+                )}
               </label>
+              {source === "suica_screenshot" && (
+                <p className="text-[11px] text-[var(--text-tertiary)] mt-2 text-center">
+                  Claude APIで自動抽出します。複数枚同時アップロード可。重複は自動スキップ。
+                </p>
+              )}
             </div>
           )}
 

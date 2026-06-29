@@ -57,6 +57,7 @@ export interface Counterparty {
   id: ID;
   name: string;
   type: CounterpartyType;
+  postalCode?: string;
   email?: string;
   address?: string;
   tNumber?: string;
@@ -286,6 +287,17 @@ export type InvoiceStatus =
   | 'overdue'
   | 'cancelled';
 
+export interface InvoiceItemDetail {
+  id: ID;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+  unitPrice?: number;
+  quantity?: number;
+  note?: string;
+}
+
 export interface InvoiceItem {
   id: ID;
   invoiceId: ID;
@@ -293,6 +305,8 @@ export interface InvoiceItem {
   quantity: number;
   unitPrice: number;
   taxRate: number;
+  unit?: "hour" | "piece";              // 単位: 時間 or 個数(デフォルト: piece)
+  details?: InvoiceItemDetail[];        // 明細書の各行(明細書ON時)
 }
 
 export interface Invoice {
@@ -312,6 +326,7 @@ export interface Invoice {
   pdfDriveFileId?: string;
   transactionId?: ID;
   note?: string;
+  includeDetailSheet?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -399,6 +414,7 @@ export interface AppSettings {
   accounts: AccountMaster[];
   gmailWhitelist: GmailWhitelistEntry[];
   bankAccount?: BankAccountInfo;
+  companyInfo?: CompanyInfo;
   updatedAt: Timestamp;
 }
 
@@ -436,6 +452,16 @@ export interface ImportRow {
   include: boolean;          // 取込対象か
   duplicateOfId?: ID;        // 重複の場合の既存ID
   warning?: string;          // 警告メッセージ
+}
+
+
+export interface CompanyInfo {
+  name: string;
+  postalCode?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  businessName?: string;       // 屋号(任意)
 }
 
 export interface BankAccountInfo {

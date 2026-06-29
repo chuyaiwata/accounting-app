@@ -38,6 +38,7 @@ export async function listCounterparties(): Promise<Counterparty[]> {
 interface CounterpartyInput {
   name: string;
   type: CounterpartyType;
+  postalCode?: string;
   email?: string;
   address?: string;
   tNumber?: string;
@@ -58,6 +59,7 @@ export async function addCounterparty(
       id: generateId(),
       name: input.name,
       type: input.type,
+      postalCode: input.postalCode,
       email: input.email,
       address: input.address,
       tNumber: input.tNumber,
@@ -93,6 +95,7 @@ export async function updateCounterparty(
       ...items[idx],
       name: input.name,
       type: input.type,
+      postalCode: input.postalCode,
       email: input.email,
       address: input.address,
       tNumber: input.tNumber,

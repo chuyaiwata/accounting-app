@@ -1,4 +1,4 @@
-import type { AppSettings, BusinessTag, AccountMaster, GmailWhitelistEntry, BankAccountInfo } from "@/lib/types";
+import type { AppSettings, BusinessTag, AccountMaster, GmailWhitelistEntry, BankAccountInfo, CompanyInfo } from "@/lib/types";
 
 export const DEFAULT_BUSINESS_TAGS: BusinessTag[] = [
   { id: "pbs4", name: "PBS4", color: "#4f8bff" },
@@ -67,11 +67,21 @@ export const DEFAULT_BANK_ACCOUNT: BankAccountInfo = {
   accountHolder: "イワタ チユウヤ",
 };
 
+
+export const DEFAULT_COMPANY_INFO: CompanyInfo = {
+  name: "岩田 宙也",
+  postalCode: "151-0062",
+  address: "東京都渋谷区",
+  phone: "080-3347-0303",
+  email: "chuya.iwata@gmail.com",
+};
+
 export const DEFAULT_SETTINGS: AppSettings = {
   businessTags: DEFAULT_BUSINESS_TAGS,
   apportionRules: [],
   accounts: DEFAULT_ACCOUNTS,
   gmailWhitelist: DEFAULT_GMAIL_WHITELIST,
   bankAccount: DEFAULT_BANK_ACCOUNT,
+  companyInfo: DEFAULT_COMPANY_INFO,
   updatedAt: new Date(0).toISOString(),
 };

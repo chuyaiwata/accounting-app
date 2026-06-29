@@ -9,22 +9,25 @@ import type {
   AccountKind,
   GmailWhitelistEntry,
   BankAccountInfo,
+  CompanyInfo,
 } from "@/lib/types";
 import { saveSettings } from "@/lib/actions/settings";
 import { EXPENSE_ACCOUNTS } from "@/lib/data/accountOptions";
-import { Tag as TagIcon, Percent, Wallet, Plus, Trash2, Loader2, Save, Mail, Edit2, Check, X } from "lucide-react";
+import { Tag as TagIcon, Percent, Wallet, Plus, Trash2, Loader2, Save, Mail, Edit2, Check, X , User , Building } from "lucide-react";
 
 interface Props {
   initialSettings: AppSettings;
 }
 
-type SectionKey = "tags" | "apportion" | "accounts" | "gmail";
+type SectionKey = "tags" | "apportion" | "accounts" | "gmail" | "bank" | "company";
 
 const SECTIONS: { key: SectionKey; label: string; icon: typeof TagIcon }[] = [
   { key: "tags", label: "事業タグ", icon: TagIcon },
   { key: "apportion", label: "家事按分", icon: Percent },
   { key: "accounts", label: "口座マスタ", icon: Wallet },
   { key: "gmail", label: "Gmail取込", icon: Mail },
+  { key: "bank", label: "振込先", icon: Building },
+  { key: "company", label: "自社情報", icon: User },
 ];
 
 const ACCOUNT_KIND_LABELS: Record<AccountKind, string> = {
@@ -42,6 +45,7 @@ export default function SettingsPage({ initialSettings }: Props) {
   const [accounts, setAccounts] = useState<AccountMaster[]>(initialSettings.accounts);
   const [gmailWhitelist, setGmailWhitelist] = useState<GmailWhitelistEntry[]>(initialSettings.gmailWhitelist || []);
   const [bankAccount, setBankAccount] = useState<BankAccountInfo | undefined>(initialSettings.bankAccount);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | undefined>(initialSettings.companyInfo);
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
 
@@ -54,6 +58,7 @@ export default function SettingsPage({ initialSettings }: Props) {
         accounts,
         gmailWhitelist,
         bankAccount,
+        companyInfo,
       });
       setSaveStatus(res.ok ? "saved" : "error");
       setTimeout(() => setSaveStatus("idle"), 3000);
@@ -137,6 +142,12 @@ export default function SettingsPage({ initialSettings }: Props) {
       )}
       {section === "gmail" && (
         <GmailSection gmailWhitelist={gmailWhitelist} setGmailWhitelist={setGmailWhitelist} />
+      )}
+      {section === "bank" && (
+        <BankSection bankAccount={bankAccount} setBankAccount={setBankAccount} />
+      )}
+      {section === "company" && (
+        <CompanySection companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} />
       )}
     </div>
   );
@@ -596,6 +607,224 @@ function GmailSection({
             ホワイトリストがありません
           </p>
         )}
+      </div>
+    </div>
+  );
+}
+
+
+
+// =============== Bank Section ===============
+
+function BankSection({
+  bankAccount,
+  setBankAccount,
+}: {
+  bankAccount: BankAccountInfo | undefined;
+  setBankAccount: (info: BankAccountInfo | undefined) => void;
+}) {
+  const current: BankAccountInfo = bankAccount || {
+    bankName: "",
+    branchName: "",
+    accountType: "ordinary",
+    accountNumber: "",
+    accountHolder: "",
+  };
+
+  const update = (patch: Partial<BankAccountInfo>) => {
+    setBankAccount({ ...current, ...patch });
+  };
+
+  return (
+    <div className="rounded-2xl p-4 md:p-6" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)" }}>
+      <div className="mb-4">
+        <h2 className="text-sm md:text-base font-semibold mb-1">振込先口座</h2>
+        <p className="text-[11px] text-[var(--text-tertiary)]">
+          請求書PDFに自動で記載される振込先情報です。
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+            銀行名
+          </label>
+          <input
+            type="text"
+            value={current.bankName}
+            onChange={(e) => update({ bankName: e.target.value })}
+            className="w-full px-3 py-2 text-sm"
+            placeholder="三菱UFJ銀行"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+            支店名
+          </label>
+          <input
+            type="text"
+            value={current.branchName}
+            onChange={(e) => update({ branchName: e.target.value })}
+            className="w-full px-3 py-2 text-sm"
+            placeholder="三軒茶屋支店"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+              口座種別
+            </label>
+            <select
+              value={current.accountType}
+              onChange={(e) => update({ accountType: e.target.value as "ordinary" | "current" })}
+              className="w-full px-3 py-2 text-sm"
+            >
+              <option value="ordinary">普通</option>
+              <option value="current">当座</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+              口座番号
+            </label>
+            <input
+              type="text"
+              value={current.accountNumber}
+              onChange={(e) => update({ accountNumber: e.target.value })}
+              className="w-full px-3 py-2 text-sm tabular"
+              placeholder="3843219"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+            口座名義(カナ)
+          </label>
+          <input
+            type="text"
+            value={current.accountHolder}
+            onChange={(e) => update({ accountHolder: e.target.value })}
+            className="w-full px-3 py-2 text-sm"
+            placeholder="イワタ チユウヤ"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============== Company Section ===============
+
+function CompanySection({
+  companyInfo,
+  setCompanyInfo,
+}: {
+  companyInfo: CompanyInfo | undefined;
+  setCompanyInfo: (info: CompanyInfo | undefined) => void;
+}) {
+  const current: CompanyInfo = companyInfo || {
+    name: "",
+    postalCode: "",
+    address: "",
+    phone: "",
+    email: "",
+  };
+
+  const update = (patch: Partial<CompanyInfo>) => {
+    setCompanyInfo({ ...current, ...patch });
+  };
+
+  return (
+    <div className="rounded-2xl p-4 md:p-6" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)" }}>
+      <div className="mb-4">
+        <h2 className="text-sm md:text-base font-semibold mb-1">自社情報</h2>
+        <p className="text-[11px] text-[var(--text-tertiary)]">
+          請求書PDFの発行者情報として記載されます。
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+            氏名 *
+          </label>
+          <input
+            type="text"
+            value={current.name}
+            onChange={(e) => update({ name: e.target.value })}
+            className="w-full px-3 py-2 text-sm"
+            placeholder="岩田 宙也"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+            屋号(任意)
+          </label>
+          <input
+            type="text"
+            value={current.businessName || ""}
+            onChange={(e) => update({ businessName: e.target.value })}
+            className="w-full px-3 py-2 text-sm"
+            placeholder=""
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+            郵便番号
+          </label>
+          <input
+            type="text"
+            value={current.postalCode || ""}
+            onChange={(e) => update({ postalCode: e.target.value })}
+            className="w-full px-3 py-2 text-sm tabular"
+            placeholder="151-0062"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+            住所
+          </label>
+          <input
+            type="text"
+            value={current.address || ""}
+            onChange={(e) => update({ address: e.target.value })}
+            className="w-full px-3 py-2 text-sm"
+            placeholder="東京都渋谷区..."
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+            電話番号
+          </label>
+          <input
+            type="text"
+            value={current.phone || ""}
+            onChange={(e) => update({ phone: e.target.value })}
+            className="w-full px-3 py-2 text-sm tabular"
+            placeholder="080-3347-0303"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+            メール
+          </label>
+          <input
+            type="email"
+            value={current.email || ""}
+            onChange={(e) => update({ email: e.target.value })}
+            className="w-full px-3 py-2 text-sm"
+            placeholder="chuya.iwata@gmail.com"
+          />
+        </div>
       </div>
     </div>
   );

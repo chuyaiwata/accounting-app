@@ -148,6 +148,7 @@ function CounterpartyModal({
   const [name, setName] = useState(editing?.name || "");
   const [type, setType] = useState<CounterpartyType>(editing?.type || "individual");
   const [email, setEmail] = useState(editing?.email || "");
+  const [postalCode, setPostalCode] = useState(editing?.postalCode || "");
   const [address, setAddress] = useState(editing?.address || "");
   const [tNumber, setTNumber] = useState(editing?.tNumber || "");
   const [withholdingDefault, setWithholdingDefault] = useState(editing?.withholdingDefault || false);
@@ -165,6 +166,7 @@ function CounterpartyModal({
       const input = {
         name,
         type,
+        postalCode: postalCode || undefined,
         email: email || undefined,
         address: address || undefined,
         tNumber: tNumber || undefined,
@@ -257,6 +259,19 @@ function CounterpartyModal({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5 font-medium">
+              郵便番号(任意)
+            </label>
+            <input
+              type="text"
+              value={postalCode}
+              onChange={(e) => setPostalCode(e.target.value)}
+              className="w-full px-3 py-2 text-sm tabular"
+              placeholder="151-0062"
             />
           </div>
 

@@ -8,12 +8,14 @@ import {
   FileText,
   Settings,
   LogOut,
+  Users,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "ダッシュボード", mobileLabel: "ホーム", icon: LayoutDashboard },
   { href: "/transactions", label: "取引", mobileLabel: "取引", icon: Receipt },
-  { href: "/invoices", label: "請求書", mobileLabel: "請求書", icon: FileText, disabled: true },
+  { href: "/invoices", label: "請求書", mobileLabel: "請求書", icon: FileText },
+  { href: "/clients", label: "取引先", mobileLabel: "取引先", icon: Users },
   { href: "/settings", label: "設定", mobileLabel: "設定", icon: Settings },
 ];
 
@@ -60,18 +62,6 @@ export default function Navigation({ user, signOutAction }: Props) {
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
-            if (item.disabled) {
-              return (
-                <button
-                  key={item.href}
-                  disabled
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition opacity-40 cursor-not-allowed text-[var(--text-secondary)]"
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            }
             return (
               <Link
                 key={item.href}
@@ -126,19 +116,6 @@ export default function Navigation({ user, signOutAction }: Props) {
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
-          if (item.disabled) {
-            return (
-              <button
-                key={item.href}
-                disabled
-                className="flex flex-col items-center justify-center gap-1 px-3 py-1.5 min-w-[64px] rounded-md transition opacity-40 cursor-not-allowed"
-                style={{ color: "var(--text-tertiary)" }}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{item.mobileLabel}</span>
-              </button>
-            );
-          }
           return (
             <Link
               key={item.href}

@@ -60,6 +60,7 @@ export async function loadSettings(): Promise<AppSettings> {
           ? parsed.gmailWhitelist
           : DEFAULT_SETTINGS.gmailWhitelist,
       bankAccount: parsed.bankAccount || DEFAULT_SETTINGS.bankAccount,
+      companyInfo: parsed.companyInfo || DEFAULT_SETTINGS.companyInfo,
       updatedAt: parsed.updatedAt || DEFAULT_SETTINGS.updatedAt,
     };
   } catch (e) {

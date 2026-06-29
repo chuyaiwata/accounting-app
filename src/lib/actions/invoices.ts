@@ -66,13 +66,25 @@ interface InvoiceInput {
   withholdingTaxRate: number;
   note?: string;
   tagId?: string;
+  includeDetailSheet?: boolean;
 }
 
-function calcInvoiceAmounts(items: InvoiceItem[], withholdingTaxRate: number) {
+function calcItemSubtotal(item: InvoiceItem, includeDetailSheet: boolean): number {
+  if (includeDetailSheet && item.details && item.details.length > 0) {
+    return item.details.reduce((sum, d) => {
+      const q = d.quantity ?? 0;
+      const u = d.unitPrice ?? 0;
+      return sum + q * u;
+    }, 0);
+  }
+  return item.quantity * item.unitPrice;
+}
+
+function calcInvoiceAmounts(items: InvoiceItem[], withholdingTaxRate: number, includeDetailSheet: boolean = false) {
   let subtotal = 0;
   let taxAmount = 0;
   for (const item of items) {
-    const itemSubtotal = item.quantity * item.unitPrice;
+    const itemSubtotal = calcItemSubtotal(item, includeDetailSheet);
     subtotal += itemSubtotal;
     taxAmount += Math.floor(itemSubtotal * item.taxRate / 100);
   }
@@ -91,7 +103,7 @@ export async function addInvoice(input: InvoiceInput): Promise<{ ok: boolean; er
       return { ok: false, error: "明細を1件以上追加してください" };
     }
 
-    const amounts = calcInvoiceAmounts(input.items, input.withholdingTaxRate);
+    const amounts = calcInvoiceAmounts(input.items, input.withholdingTaxRate, input.includeDetailSheet || false);
     const invoiceNo = await generateInvoiceNo(accessToken, folderId, input.issueDate);
     const now = new Date().toISOString();
 
@@ -110,6 +122,7 @@ export async function addInvoice(input: InvoiceInput): Promise<{ ok: boolean; er
       transferAmount: amounts.transferAmount,
       status: "draft",
       note: input.note,
+      includeDetailSheet: input.includeDetailSheet,
       createdAt: now,
       updatedAt: now,
     };
@@ -143,7 +156,7 @@ export async function updateInvoice(
       return { ok: false, error: "明細を1件以上追加してください" };
     }
 
-    const amounts = calcInvoiceAmounts(input.items, input.withholdingTaxRate);
+    const amounts = calcInvoiceAmounts(input.items, input.withholdingTaxRate, input.includeDetailSheet || false);
 
     items[idx] = {
       ...items[idx],

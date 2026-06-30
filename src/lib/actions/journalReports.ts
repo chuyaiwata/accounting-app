@@ -25,6 +25,16 @@ export interface JournalRow {
  */
 export async function getJournalBook(fiscalYear?: number): Promise<JournalRow[]> {
   const transactions = await listTransactions();
+  console.log("[DEBUG] 全取引件数:", transactions.length);
+  const typeCount: Record<string, number> = {};
+  for (const t of transactions) {
+    typeCount[t.type] = (typeCount[t.type] || 0) + 1;
+  }
+  console.log("[DEBUG] type分布:", typeCount);
+  const expense_first_3 = transactions.filter((t) => t.type === "expense").slice(0, 3);
+  console.log("[DEBUG] expense first 3:", JSON.stringify(expense_first_3.map((t) => ({
+    desc: t.description.slice(0, 30), amount: t.amount, accountCode: t.accountCode, note: (t.note || "").slice(0, 30)
+  })), null, 2));
   const filtered = fiscalYear
     ? transactions.filter((t) => new Date(t.date).getFullYear() === fiscalYear)
     : transactions;

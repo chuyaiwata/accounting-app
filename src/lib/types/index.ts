@@ -187,6 +187,20 @@ export interface Transaction {
 // 仕訳 (Journal Entry)
 // -----------------------------------------------------------------------------
 
+export interface AccountDef {
+  code: string;
+  name: string;
+  category: AccountCategory;
+  subCategory?: string;
+  tax_form_line?: string;
+}
+
+export interface OpeningBalance {
+  accountCode: string;
+  amount: number;
+  fiscalYear: number;
+}
+
 export interface JournalEntry {
   id: ID;
   transactionId: ID;
@@ -416,6 +430,7 @@ export interface AppSettings {
   bankAccount?: BankAccountInfo;
   companyInfo?: CompanyInfo;
   gmailAccounts?: GmailAccount[];
+  openingBalances?: OpeningBalance[];
   updatedAt: Timestamp;
 }
 

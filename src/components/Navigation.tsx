@@ -9,6 +9,7 @@ import {
   Settings,
   LogOut,
   Users,
+  BookOpen,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/transactions", label: "取引", mobileLabel: "取引", icon: Receipt },
   { href: "/invoices", label: "請求書", mobileLabel: "請求書", icon: FileText },
   { href: "/clients", label: "取引先", mobileLabel: "取引先", icon: Users },
+  { href: "/reports", label: "決算書", mobileLabel: "決算書", icon: BookOpen },
   { href: "/settings", label: "設定", mobileLabel: "設定", icon: Settings },
 ];
 

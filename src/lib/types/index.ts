@@ -415,6 +415,7 @@ export interface AppSettings {
   gmailWhitelist: GmailWhitelistEntry[];
   bankAccount?: BankAccountInfo;
   companyInfo?: CompanyInfo;
+  gmailAccounts?: GmailAccount[];
   updatedAt: Timestamp;
 }
 
@@ -454,6 +455,18 @@ export interface ImportRow {
   warning?: string;          // 警告メッセージ
 }
 
+
+
+export interface GmailAccount {
+  id: ID;
+  email: string;                       // chuya.iwata@gmail.com
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: number;                  // accessToken の有効期限(ミリ秒)
+  enabled: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
 
 export interface CompanyInfo {
   name: string;

@@ -10,6 +10,7 @@ import type {
   GmailWhitelistEntry,
   BankAccountInfo,
   CompanyInfo,
+  GmailAccount,
 } from "@/lib/types";
 import { saveSettings } from "@/lib/actions/settings";
 import { EXPENSE_ACCOUNTS } from "@/lib/data/accountOptions";
@@ -46,6 +47,7 @@ export default function SettingsPage({ initialSettings }: Props) {
   const [gmailWhitelist, setGmailWhitelist] = useState<GmailWhitelistEntry[]>(initialSettings.gmailWhitelist || []);
   const [bankAccount, setBankAccount] = useState<BankAccountInfo | undefined>(initialSettings.bankAccount);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | undefined>(initialSettings.companyInfo);
+  const [gmailAccounts, setGmailAccounts] = useState<GmailAccount[]>(initialSettings.gmailAccounts || []);
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
 
@@ -59,6 +61,7 @@ export default function SettingsPage({ initialSettings }: Props) {
         gmailWhitelist,
         bankAccount,
         companyInfo,
+        gmailAccounts,
       });
       setSaveStatus(res.ok ? "saved" : "error");
       setTimeout(() => setSaveStatus("idle"), 3000);
@@ -141,7 +144,7 @@ export default function SettingsPage({ initialSettings }: Props) {
         <AccountsSection accounts={accounts} setAccounts={setAccounts} />
       )}
       {section === "gmail" && (
-        <GmailSection gmailWhitelist={gmailWhitelist} setGmailWhitelist={setGmailWhitelist} />
+        <GmailSection gmailWhitelist={gmailWhitelist} setGmailWhitelist={setGmailWhitelist} gmailAccounts={gmailAccounts} setGmailAccounts={setGmailAccounts} />
       )}
       {section === "bank" && (
         <BankSection bankAccount={bankAccount} setBankAccount={setBankAccount} />
@@ -482,9 +485,13 @@ function AccountsSection({
 function GmailSection({
   gmailWhitelist,
   setGmailWhitelist,
+  gmailAccounts,
+  setGmailAccounts,
 }: {
   gmailWhitelist: GmailWhitelistEntry[];
   setGmailWhitelist: (entries: GmailWhitelistEntry[]) => void;
+  gmailAccounts: GmailAccount[];
+  setGmailAccounts: (accounts: GmailAccount[]) => void;
 }) {
   const generateId = () => Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 9);
 
@@ -510,11 +517,87 @@ function GmailSection({
     setGmailWhitelist(gmailWhitelist.filter((_, i) => i !== idx));
   };
 
+  // アカウント管理関数
+  const removeAccount = (id: string) => {
+    if (!confirm("このアカウントを削除しますか?")) return;
+    setGmailAccounts(gmailAccounts.filter((a) => a.id !== id));
+  };
+
+  const toggleAccount = (id: string) => {
+    setGmailAccounts(gmailAccounts.map((a) => a.id === id ? { ...a, enabled: !a.enabled } : a));
+  };
+
   return (
-    <div className="rounded-2xl p-4 md:p-6" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)" }}>
-      <div className="flex items-start justify-between mb-4 gap-2 flex-wrap">
-        <div>
-          <h2 className="text-sm md:text-base font-semibold mb-1">Gmail取込ホワイトリスト</h2>
+    <div className="space-y-4">
+      {/* アカウント管理セクション */}
+      <div className="rounded-2xl p-4 md:p-6" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)" }}>
+        <div className="flex items-start justify-between mb-4 gap-2 flex-wrap">
+          <div>
+            <h2 className="text-sm md:text-base font-semibold mb-1">Gmailアカウント</h2>
+            <p className="text-[11px] text-[var(--text-tertiary)]">
+              取込対象のGmailアカウントを登録。複数登録可能(全アカウントを横断検索)。
+            </p>
+          </div>
+          <a
+            href="/api/gmail-auth/authorize"
+            className="px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1 transition"
+            style={{ background: "var(--accent)", color: "white" }}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            アカウント追加
+          </a>
+        </div>
+
+        <div className="space-y-2">
+          {gmailAccounts.length === 0 ? (
+            <p className="text-sm text-[var(--text-tertiary)] text-center py-4">
+              アカウントが未登録です。「アカウント追加」で登録してください。
+            </p>
+          ) : (
+            gmailAccounts.map((acc) => (
+              <div
+                key={acc.id}
+                className="rounded-lg p-3 flex items-center justify-between"
+                style={{
+                  background: "var(--bg-overlay)",
+                  opacity: acc.enabled ? 1 : 0.5,
+                }}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{acc.email}</p>
+                  <p className="text-[10px] text-[var(--text-tertiary)]">
+                    {acc.refreshToken ? "認証済み(自動更新可)" : "認証済み(リフレッシュ不可)"}
+                  </p>
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => toggleAccount(acc.id)}
+                    className="p-2 rounded transition"
+                    style={{
+                      background: acc.enabled ? "rgba(52, 211, 153, 0.15)" : "var(--bg-elevated)",
+                      color: acc.enabled ? "#34d399" : "var(--text-tertiary)",
+                    }}
+                  >
+                    {acc.enabled ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    onClick={() => removeAccount(acc.id)}
+                    className="p-2 rounded text-[var(--text-tertiary)] hover:text-[#f87171] transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* ホワイトリスト */}
+      <div className="rounded-2xl p-4 md:p-6" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)" }}>
+        <div className="flex items-start justify-between mb-4 gap-2 flex-wrap">
+          <div>
+            <h2 className="text-sm md:text-base font-semibold mb-1">Gmail取込ホワイトリスト</h2>
           <p className="text-[11px] text-[var(--text-tertiary)]">
             Gmailから自動取込する送信者を登録。メールアドレスのドメイン or 件名キーワードで判定。
           </p>
@@ -608,6 +691,7 @@ function GmailSection({
           </p>
         )}
       </div>
+    </div>
     </div>
   );
 }

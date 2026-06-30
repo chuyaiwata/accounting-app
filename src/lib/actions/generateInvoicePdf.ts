@@ -194,7 +194,7 @@ function drawInvoicePage1(
       displayQty = item.quantity;
       displayPrice = item.unitPrice;
     }
-    const unitLabel = item.unit === "hour" ? "時間" : "個";
+    const unitLabel = item.unit === "piece" ? "個" : "時間";
     drawText(page, item.description.slice(0, 30), colDesc, y, 10, font, BLACK);
     drawText(page, displayQty + unitLabel, colQty, y, 10, font, BLACK);
     if (displayPrice > 0) {
@@ -324,7 +324,7 @@ function drawDetailSheet(
   y -= 16;
 
   for (const item of invoice.items) {
-    const unitLabel = item.unit === "hour" ? "時間" : "個";
+    const unitLabel = item.unit === "piece" ? "個" : "時間";
     const details = item.details || [];
 
     if (details.length === 0) {

@@ -336,7 +336,7 @@ function InvoiceModal({
         quantity: 1,
         unitPrice: 0,
         taxRate: 0,
-        unit: "piece",
+        unit: "hour",
         details: [],
       },
     ]
@@ -397,7 +397,7 @@ function InvoiceModal({
       quantity: 1,
       unitPrice: 0,
       taxRate: 0,
-      unit: "piece",
+      unit: "hour",
       details: [],
     }]);
   };
@@ -618,8 +618,8 @@ function InvoiceModal({
                         onClick={() => updateItem(idx, { unit: "hour" })}
                         className="px-2 py-1 rounded text-[10px] transition"
                         style={{
-                          background: (item.unit || "piece") === "hour" ? "var(--accent)" : "var(--bg-elevated)",
-                          color: (item.unit || "piece") === "hour" ? "white" : "var(--text-secondary)",
+                          background: (item.unit || "hour") === "hour" ? "var(--accent)" : "var(--bg-elevated)",
+                          color: (item.unit || "hour") === "hour" ? "white" : "var(--text-secondary)",
                         }}
                       >時間</button>
                       <button
@@ -627,8 +627,8 @@ function InvoiceModal({
                         onClick={() => updateItem(idx, { unit: "piece" })}
                         className="px-2 py-1 rounded text-[10px] transition"
                         style={{
-                          background: (item.unit || "piece") === "piece" ? "var(--accent)" : "var(--bg-elevated)",
-                          color: (item.unit || "piece") === "piece" ? "white" : "var(--text-secondary)",
+                          background: (item.unit || "hour") === "piece" ? "var(--accent)" : "var(--bg-elevated)",
+                          color: (item.unit || "hour") === "piece" ? "white" : "var(--text-secondary)",
                         }}
                       >個数</button>
                     </div>

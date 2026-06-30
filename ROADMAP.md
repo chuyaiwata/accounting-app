@@ -186,3 +186,36 @@ Transaction型のフィールド:
 - 電子マネー: PayPay、Suica、ハチペイ
 - マイナンバーカード所持、e-Tax電子申告希望
 - 配偶者/扶養なし、外注なし、雑所得なし
+
+## Phase 2 完成記念日: 2026-06-30
+
+### 完成機能
+- ✅ A: ニコス取込UX改善(店名グループ化)
+- ✅ C: CSV取込(三菱UFJ銀行 + 三菱UFJニコス)
+- ✅ D: 請求書発行(PDF生成 + 売掛金消込)
+- ✅ E: Gmail自動取込(24社ホワイトリスト)
+- ✅ F: 設定UI(事業タグ・家事按分・口座マスタ・振込先・自社情報・Gmail取込)
+- ✅ H: モバイルSuica履歴取込(スクショOCR)
+- ✅ レシート画像Drive保管(電子帳簿保存法対応)
+- ✅ 取引先マスタ(Counterparty CRUD)
+- ✅ 請求書PDF(pdf-lib + M PLUS 1p フォント)
+  - A4・グレースケール・モダンデザイン
+  - 1ページ目: 宛先・請求書情報・ご請求金額・明細表・合計欄・振込先・備考・自社情報フッター
+  - 2ページ目(任意): 明細書(日付・開始・終了・場所・摘要・単価・数量・金額)
+  - InvoiceItem.unit (時間/個数)切替
+  - InvoiceItemDetail 配列で柔軟な明細書
+  - 時刻入力の自動フォーマット(0900 → 09:00、全角→半角)
+  - 時刻から時間数自動計算(30分刻み)
+
+### スタック確定
+- Next.js 16 + TypeScript + Tailwind v4
+- NextAuth v5 (Google OAuth)
+- Cloudflare Workers (@opennextjs/cloudflare)
+- Google Drive (JSONL形式)
+- Claude API (claude-haiku-4-5)
+- pdf-lib + @pdf-lib/fontkit
+- M PLUS 1p Regular フォント
+
+### 次フェーズ
+- Phase 3: 複式簿記エンジン、B/S、P/L、税額計算
+- Gmail複数アカウント対応(既知の未完了項目)

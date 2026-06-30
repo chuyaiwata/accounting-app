@@ -8,15 +8,20 @@ import { PDFDocument, PDFFont, PDFPage, rgb, RGB } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import type { Invoice, Counterparty, CompanyInfo, BankAccountInfo } from "@/lib/types";
 import { revalidatePath } from "next/cache";
-import fs from "fs/promises";
-import path from "path";
 
 const INVOICES_FILE = "invoices.jsonl";
 
 async function loadFont(): Promise<Uint8Array> {
-  const fontPath = path.join(process.cwd(), "public", "fonts", "MPLUS1p-Regular.ttf");
-  const buffer = await fs.readFile(fontPath);
-  return new Uint8Array(buffer);
+  // 本番(Cloudflare Workers): NEXT_PUBLIC_APP_URL or リクエストオリジンから取得
+  // 開発: localhost:3000
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://accounting-app.chuyaiwata.workers.dev";
+  const fontUrl = baseUrl + "/fonts/MPLUS1p-Regular.ttf";
+  const res = await fetch(fontUrl);
+  if (!res.ok) {
+    throw new Error("フォント読込失敗: " + res.status);
+  }
+  const buf = await res.arrayBuffer();
+  return new Uint8Array(buf);
 }
 
 const BLACK: RGB = rgb(0, 0, 0);

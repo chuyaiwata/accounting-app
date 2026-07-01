@@ -18,6 +18,7 @@ import type {
   SettlementStatus,
 } from "@/lib/types";
 import { revalidatePath } from "next/cache";
+import { migrateAccountCode } from "../utils/accountCodeMigration";
 
 const TRANSACTIONS_FILE = "transactions.jsonl";
 
@@ -151,7 +152,12 @@ export async function listTransactions(): Promise<Transaction[]> {
       folderId,
       TRANSACTIONS_FILE
     );
-    return items.sort((a, b) => (a.date < b.date ? 1 : -1));
+    // 旧勘定科目コード → 新コードへの互換変換
+    const migrated = items.map((t) => ({
+      ...t,
+      accountCode: migrateAccountCode(t.accountCode),
+    }));
+    return migrated.sort((a, b) => (a.date < b.date ? 1 : -1));
   } catch (e) {
     console.error("listTransactions error:", e);
     return [];

@@ -2,6 +2,7 @@
 
 import type { Transaction, JournalEntry, ID } from "@/lib/types";
 import { JOURNAL_ACCOUNTS } from "@/lib/data/journalAccounts";
+import { loadSettings } from "./settings";
 
 const CATEGORY_TO_ACCOUNT: Record<string, string> = {
   // 売上
@@ -70,30 +71,12 @@ const PAYMENT_TO_ACCOUNT: Record<string, string> = {
 
 
 // 旧コード(日本標準勘定科目コード) → 新コードへの変換
-const OLD_TO_NEW_CODE: Record<string, string> = {
-  "501": "sales",
-  "511": "rent", "512": "utilities", "513": "communication",
-  "514": "entertainment", "515": "transportation", "516": "supplies",
-  "517": "ad_marketing", "518": "book_education", "519": "outsourcing",
-  "520": "tax_public", "521": "insurance", "522": "repair", "523": "freight",
-  "524": "transportation",  // 旅費交通費
-  "525": "communication",   // 通信費
-  "526": "welfare", "527": "depreciation", "528": "fee_dues",
-  "529": "misc",
-};
-
-function normalizeAccountCode(code: string | undefined): string | undefined {
-  if (!code) return undefined;
-  return OLD_TO_NEW_CODE[code] || code;
-}
-
-
 function resolveExpenseAccount(t: Transaction): string {
   // 事業主貸(個人税金や年金)を優先判定
   if (isOwnerDrawings(t.description)) return "owner_drawings";
   if (t.note && isOwnerDrawings(t.note)) return "owner_drawings";
   // accountCode が指定されてれば優先
-  if (t.accountCode) { const normalized = normalizeAccountCode(t.accountCode); if (normalized && JOURNAL_ACCOUNTS.some((a) => a.code === normalized)) return normalized; }
+  if (t.accountCode) { const normalized = t.accountCode; if (normalized && JOURNAL_ACCOUNTS.some((a) => a.code === normalized)) return normalized; }
   // description から推定
   if (t.description) {
     for (const key of Object.keys(CATEGORY_TO_ACCOUNT)) {
@@ -193,21 +176,41 @@ export async function transactionToJournal(t: Transaction): Promise<JournalEntry
     const expenseAccount = resolveExpenseAccount(t);
     const paymentAccount = resolvePaymentAccount(t);
 
-    // 借方: 費用 / 貸方: 支払元
+    // 家事按分ルール適用
+    const settings = await loadSettings();
+    const rule = settings.apportionRules.find((r) => r.accountCode === expenseAccount);
+    const ratio = rule && rule.businessRatio > 0 && rule.businessRatio < 1
+      ? rule.businessRatio
+      : 1.0;
+    const totalAmount = Math.round(t.amount);
+    const businessAmount = Math.round(totalAmount * ratio);
+    const personalAmount = totalAmount - businessAmount;
+
+    // 借方: 費用(事業分) + 事業主貸(家事分) / 貸方: 支払元(満額)
     entries.push({
       id: generateId(),
       transactionId: t.id,
       accountId: expenseAccount,
-      debit: Math.round(t.amount),
+      debit: businessAmount,
       credit: 0,
-      taxAmount, taxRate, allocationRatio,
+      taxAmount, taxRate, allocationRatio: ratio,
     });
+    if (personalAmount > 0) {
+      entries.push({
+        id: generateId(),
+        transactionId: t.id,
+        accountId: "owner_drawings",
+        debit: personalAmount,
+        credit: 0,
+        taxAmount, taxRate, allocationRatio: 1 - ratio,
+      });
+    }
     entries.push({
       id: generateId(),
       transactionId: t.id,
       accountId: paymentAccount,
       debit: 0,
-      credit: Math.round(t.amount),
+      credit: totalAmount,
       taxAmount, taxRate, allocationRatio,
     });
   } else if (t.type === "transfer") {

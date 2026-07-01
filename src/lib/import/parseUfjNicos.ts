@@ -57,12 +57,12 @@ function classifyNicos(storeName: string): {
 
   // 公共料金: 水道光熱費
   if (/東京ガス|東京電力|東京都水道|ENEOS|大阪ガス|関西電力/.test(n)) {
-    return { category: "business", accountCode: "523", include: true, warning: "家事按分を確認してください" };
+    return { category: "business", accountCode: "utilities", include: true, warning: "家事按分を確認してください" };
   }
 
   // 通信費
   if (/SoftBank|ソフトバンク|ＳｏｆｔＢａｎｋ|KDDI|au電話|ａｕ電話|NTT|ドコモ|楽天モバイル|AIRALO|VPN/i.test(n)) {
-    return { category: "business", accountCode: "525", include: true };
+    return { category: "business", accountCode: "communication", include: true };
   }
 
   // 国保・年金
@@ -72,17 +72,17 @@ function classifyNicos(storeName: string): {
 
   // サブスク・SaaS(事業の可能性高)
   if (/APPLE|ＡＰＰＬＥ|ADOBE|ＡＤＯＢＥ|GITHUB|ＧＩＴＨＵＢ|VERCEL|CLAUDE|OPENAI|FIGMA|NOTION|SLACK|ＳＬＡＣＫ|GOOGLE|ＧＯＯＧＬＥ|MICROSOFT|ＭＩＣＲＯＳＯＦＴ/i.test(n)) {
-    return { category: "business", accountCode: "525", include: true };
+    return { category: "business", accountCode: "communication", include: true };
   }
 
   // 飲食店(プライベートの可能性高)
   if (/スキヤ|スキヤキ|マツヤ|ヨシノヤ|ハコネソバ|スターバックス|スタバ|ドトール|タリーズ|サイゼリヤ|ガスト|ジョナサン|箱根そば|モスバーガー|マクドナルド|サブウェイ/.test(n)) {
-    return { category: "business", accountCode: "541", include: false, warning: "飲食(プライベート/会議費を要確認)" };
+    return { category: "business", accountCode: "entertainment", include: false, warning: "飲食(プライベート/会議費を要確認)" };
   }
 
   // コンビニ・スーパー(プライベート多め)
   if (/セブン−イレブン|セブンイレブン|ローソン|ファミリーマート|ファミマ|まいばすけっと|イオン|西友|ライフ|マルエツ|サミット/.test(n)) {
-    return { category: "business", accountCode: "530", include: false, warning: "コンビニ・スーパー(プライベート率高)" };
+    return { category: "business", accountCode: "supplies", include: false, warning: "コンビニ・スーパー(プライベート率高)" };
   }
 
   // 医療費(所得控除)
@@ -92,17 +92,17 @@ function classifyNicos(storeName: string): {
 
   // Kindle・電子書籍
   if (/Kindle|キンドル|楽天Kobo|honto/i.test(n)) {
-    return { category: "business", accountCode: "542", include: true, warning: "新聞図書費(事業用か確認)" };
+    return { category: "business", accountCode: "book_education", include: true, warning: "新聞図書費(事業用か確認)" };
   }
 
   // EC: 仕入か消耗品費
   if (/AMAZON|アマゾン|楽天市場|ヨドバシ|ビックカメラ|ヨドバシカメラ/.test(n)) {
-    return { category: "business", accountCode: "530", include: false, warning: "EC利用(用途を確認)" };
+    return { category: "business", accountCode: "supplies", include: false, warning: "EC利用: 用途に応じて科目を選択(消耗品費/新聞図書費/接待交際費/工具器具備品 等)" };
   }
 
   // JR・電車・交通
   if (/JR東日本|JR西日本|東京メトロ|都営|京王|小田急|東急|京急|ハチペイ/.test(n)) {
-    return { category: "business", accountCode: "524", include: false, warning: "交通系(事業使用か要確認)" };
+    return { category: "business", accountCode: "transportation", include: false, warning: "交通系(事業使用か要確認)" };
   }
 
   // 電子マネーチャージ(プライベート振替の可能性高)

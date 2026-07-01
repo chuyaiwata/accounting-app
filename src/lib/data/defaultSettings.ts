@@ -20,26 +20,26 @@ export const DEFAULT_ACCOUNTS: AccountMaster[] = [
 
 export const DEFAULT_GMAIL_WHITELIST: GmailWhitelistEntry[] = [
   // 公共料金
-  { id: "gas-tokyo", name: "東京ガス", matchType: "from", matchValue: "tokyo-gas.co.jp", defaultAccountCode: "523", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
-  { id: "tepco", name: "東京電力", matchType: "from", matchValue: "tepco.co.jp", defaultAccountCode: "523", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
-  { id: "water-tokyo", name: "東京都水道局", matchType: "from", matchValue: "waterworks.metro.tokyo", defaultAccountCode: "523", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
+  { id: "gas-tokyo", name: "東京ガス", matchType: "from", matchValue: "tokyo-gas.co.jp", defaultAccountCode: "utilities", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
+  { id: "tepco", name: "東京電力", matchType: "from", matchValue: "tepco.co.jp", defaultAccountCode: "utilities", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
+  { id: "water-tokyo", name: "東京都水道局", matchType: "from", matchValue: "waterworks.metro.tokyo", defaultAccountCode: "utilities", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
 
   // 通信
-  { id: "softbank", name: "ソフトバンク", matchType: "from", matchValue: "softbank.jp", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
-  { id: "au-kddi", name: "au/KDDI", matchType: "from", matchValue: "kddi.com", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
-  { id: "airalo", name: "AIRALO", matchType: "from", matchValue: "airalo.com", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
+  { id: "softbank", name: "ソフトバンク", matchType: "from", matchValue: "softbank.jp", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
+  { id: "au-kddi", name: "au/KDDI", matchType: "from", matchValue: "kddi.com", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
+  { id: "airalo", name: "AIRALO", matchType: "from", matchValue: "airalo.com", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
 
   // SaaS/サブスク
-  { id: "apple", name: "Apple", matchType: "from", matchValue: "apple.com", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
-  { id: "adobe", name: "Adobe", matchType: "from", matchValue: "adobe.com", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
-  { id: "github", name: "GitHub", matchType: "from", matchValue: "github.com", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
-  { id: "vercel", name: "Vercel", matchType: "from", matchValue: "vercel.com", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
-  { id: "anthropic", name: "Anthropic/Claude", matchType: "from", matchValue: "anthropic.com", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
-  { id: "openai", name: "OpenAI", matchType: "from", matchValue: "openai.com", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
-  { id: "notion", name: "Notion", matchType: "from", matchValue: "notion.so", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
-  { id: "slack", name: "Slack", matchType: "from", matchValue: "slack.com", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
-  { id: "microsoft", name: "Microsoft", matchType: "from", matchValue: "microsoft.com", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
-  { id: "figma", name: "Figma", matchType: "from", matchValue: "figma.com", defaultAccountCode: "525", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
+  { id: "apple", name: "Apple", matchType: "from", matchValue: "apple.com", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
+  { id: "adobe", name: "Adobe", matchType: "from", matchValue: "adobe.com", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
+  { id: "github", name: "GitHub", matchType: "from", matchValue: "github.com", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
+  { id: "vercel", name: "Vercel", matchType: "from", matchValue: "vercel.com", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
+  { id: "anthropic", name: "Anthropic/Claude", matchType: "from", matchValue: "anthropic.com", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
+  { id: "openai", name: "OpenAI", matchType: "from", matchValue: "openai.com", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
+  { id: "notion", name: "Notion", matchType: "from", matchValue: "notion.so", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
+  { id: "slack", name: "Slack", matchType: "from", matchValue: "slack.com", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
+  { id: "microsoft", name: "Microsoft", matchType: "from", matchValue: "microsoft.com", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
+  { id: "figma", name: "Figma", matchType: "from", matchValue: "figma.com", defaultAccountCode: "communication", defaultCategory: "business", defaultTagIds: ["pbs4"], enabled: true },
 
   // 税・社会保険
   { id: "nenkin", name: "国民年金機構", matchType: "from", matchValue: "nenkin.go.jp", defaultCategory: "tax_deductible", defaultTagIds: [], enabled: true },
@@ -51,11 +51,11 @@ export const DEFAULT_GMAIL_WHITELIST: GmailWhitelistEntry[] = [
   { id: "ufj-nicos", name: "三菱UFJニコス", matchType: "from", matchValue: "cr.mufg.jp", defaultCategory: "business", defaultTagIds: [], enabled: true },
 
   // 不動産
-  { id: "cosmos-initia", name: "コスモイニシア", matchType: "from", matchValue: "cosmos-initia", defaultAccountCode: "521", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
+  { id: "cosmos-initia", name: "コスモイニシア", matchType: "from", matchValue: "cosmos-initia", defaultAccountCode: "tax_public", defaultCategory: "business", defaultTagIds: ["common"], enabled: true },
 
   // EC
-  { id: "amazon", name: "Amazon", matchType: "from", matchValue: "amazon.co.jp", defaultAccountCode: "530", defaultCategory: "business", defaultTagIds: [], enabled: true },
-  { id: "rakuten", name: "楽天", matchType: "from", matchValue: "rakuten.co.jp", defaultAccountCode: "530", defaultCategory: "business", defaultTagIds: [], enabled: true },
+  { id: "amazon", name: "Amazon", matchType: "from", matchValue: "amazon.co.jp", defaultAccountCode: "supplies", defaultCategory: "business", defaultTagIds: [], enabled: true },
+  { id: "rakuten", name: "楽天", matchType: "from", matchValue: "rakuten.co.jp", defaultAccountCode: "supplies", defaultCategory: "business", defaultTagIds: [], enabled: true },
 ];
 
 
@@ -83,5 +83,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   gmailWhitelist: DEFAULT_GMAIL_WHITELIST,
   bankAccount: DEFAULT_BANK_ACCOUNT,
   companyInfo: DEFAULT_COMPANY_INFO,
+  gmailAccounts: [],
+  openingBalances: [],
   updatedAt: new Date(0).toISOString(),
 };

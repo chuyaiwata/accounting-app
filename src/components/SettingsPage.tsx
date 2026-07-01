@@ -11,16 +11,19 @@ import type {
   BankAccountInfo,
   CompanyInfo,
   GmailAccount,
+  OpeningBalance,
 } from "@/lib/types";
 import { saveSettings } from "@/lib/actions/settings";
+import { JOURNAL_ACCOUNTS } from "@/lib/data/journalAccounts";
 import { EXPENSE_ACCOUNTS } from "@/lib/data/accountOptions";
 import { Tag as TagIcon, Percent, Wallet, Plus, Trash2, Loader2, Save, Mail, Edit2, Check, X , User , Building } from "lucide-react";
+import NumericInput from "./NumericInput";
 
 interface Props {
   initialSettings: AppSettings;
 }
 
-type SectionKey = "tags" | "apportion" | "accounts" | "gmail" | "bank" | "company";
+type SectionKey = "tags" | "apportion" | "accounts" | "gmail" | "bank" | "company" | "opening";
 
 const SECTIONS: { key: SectionKey; label: string; icon: typeof TagIcon }[] = [
   { key: "tags", label: "事業タグ", icon: TagIcon },
@@ -29,6 +32,7 @@ const SECTIONS: { key: SectionKey; label: string; icon: typeof TagIcon }[] = [
   { key: "gmail", label: "Gmail取込", icon: Mail },
   { key: "bank", label: "振込先", icon: Building },
   { key: "company", label: "自社情報", icon: User },
+  { key: "opening", label: "期首残高", icon: Wallet },
 ];
 
 const ACCOUNT_KIND_LABELS: Record<AccountKind, string> = {
@@ -48,6 +52,7 @@ export default function SettingsPage({ initialSettings }: Props) {
   const [bankAccount, setBankAccount] = useState<BankAccountInfo | undefined>(initialSettings.bankAccount);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | undefined>(initialSettings.companyInfo);
   const [gmailAccounts, setGmailAccounts] = useState<GmailAccount[]>(initialSettings.gmailAccounts || []);
+  const [openingBalances, setOpeningBalances] = useState<OpeningBalance[]>(initialSettings.openingBalances || []);
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
 
@@ -62,6 +67,7 @@ export default function SettingsPage({ initialSettings }: Props) {
         bankAccount,
         companyInfo,
         gmailAccounts,
+        openingBalances,
       });
       setSaveStatus(res.ok ? "saved" : "error");
       setTimeout(() => setSaveStatus("idle"), 3000);
@@ -151,6 +157,9 @@ export default function SettingsPage({ initialSettings }: Props) {
       )}
       {section === "company" && (
         <CompanySection companyInfo={companyInfo} setCompanyInfo={setCompanyInfo} />
+      )}
+      {section === "opening" && (
+        <OpeningBalanceSection openingBalances={openingBalances} setOpeningBalances={setOpeningBalances} />
       )}
     </div>
   );
@@ -313,19 +322,15 @@ function ApportionSection({
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={rule.businessRatio}
-                  onChange={(e) =>
-                    updateRule(idx, {
-                      businessRatio: Math.max(0, Math.min(100, Number(e.target.value))),
-                    })
-                  }
-                  className="w-20 px-3 py-2 text-sm tabular text-right"
-                />
+                <div className="w-20 px-3 py-2 text-sm">
+                  <NumericInput
+                    value={rule.businessRatio}
+                    onChange={(n) => updateRule(idx, { businessRatio: Math.max(0, Math.min(100, n)) })}
+                    min={0}
+                    max={100}
+                    showCommas={false}
+                  />
+                </div>
                 <span className="text-sm text-[var(--text-secondary)]">%</span>
               </div>
               <input
@@ -909,6 +914,118 @@ function CompanySection({
             placeholder="chuya.iwata@gmail.com"
           />
         </div>
+      </div>
+    </div>
+  );
+}
+
+// =============== Opening Balance Section ===============
+
+const OPENING_ACCOUNT_OPTIONS = JOURNAL_ACCOUNTS.filter(
+  (a) => a.category === "asset" || a.category === "liability"
+);
+
+function OpeningBalanceSection({
+  openingBalances,
+  setOpeningBalances,
+}: {
+  openingBalances: OpeningBalance[];
+  setOpeningBalances: (v: OpeningBalance[]) => void;
+}) {
+  const fiscalYear = 2026;
+
+  const getBalance = (code: string): number => {
+    const found = openingBalances.find(
+      (b) => b.accountCode === code && b.fiscalYear === fiscalYear
+    );
+    return found?.amount || 0;
+  };
+
+  const setBalance = (code: string, amount: number) => {
+    const others = openingBalances.filter(
+      (b) => !(b.accountCode === code && b.fiscalYear === fiscalYear)
+    );
+    if (amount === 0) {
+      setOpeningBalances(others);
+    } else {
+      setOpeningBalances([
+        ...others,
+        { accountCode: code, amount, fiscalYear },
+      ]);
+    }
+  };
+
+  const totalAssets = OPENING_ACCOUNT_OPTIONS.filter(
+    (a) => a.category === "asset"
+  ).reduce((sum, a) => sum + getBalance(a.code), 0);
+
+  const totalLiabilities = OPENING_ACCOUNT_OPTIONS.filter(
+    (a) => a.category === "liability"
+  ).reduce((sum, a) => sum + getBalance(a.code), 0);
+
+  const ownerCapital = totalAssets - totalLiabilities;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold mb-2">期首残高 ({fiscalYear}年度)</h2>
+        <p className="text-xs text-[var(--text-tertiary)] mb-4">
+          開業日時点の各勘定科目の残高を入力してください。資産 - 負債 = 元入金として自動計算されます。
+        </p>
+      </div>
+
+      <div className="rounded-lg overflow-hidden" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)" }}>
+        <div className="px-4 py-2 text-sm font-semibold" style={{ background: "var(--bg-base)" }}>資産</div>
+        {OPENING_ACCOUNT_OPTIONS.filter((a) => a.category === "asset").map((a) => (
+          <div key={a.code} className="flex items-center justify-between px-4 py-2 border-t" style={{ borderColor: "var(--border-subtle)" }}>
+            <span className="text-sm">{a.name}</span>
+            <input
+              type="number"
+              value={getBalance(a.code) || ""}
+              onChange={(e) => setBalance(a.code, parseInt(e.target.value) || 0)}
+              onFocus={(e) => e.target.select()}
+              placeholder="0"
+              className="w-32 px-2 py-1 text-right text-sm rounded"
+              style={{ background: "var(--bg-base)", border: "1px solid var(--border-default)" }}
+            />
+          </div>
+        ))}
+        <div className="flex items-center justify-between px-4 py-2 border-t font-semibold" style={{ borderColor: "var(--border-default)", background: "var(--bg-base)" }}>
+          <span className="text-sm">資産合計</span>
+          <span className="text-sm tabular">¥{totalAssets.toLocaleString()}</span>
+        </div>
+      </div>
+
+      <div className="rounded-lg overflow-hidden" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)" }}>
+        <div className="px-4 py-2 text-sm font-semibold" style={{ background: "var(--bg-base)" }}>負債</div>
+        {OPENING_ACCOUNT_OPTIONS.filter((a) => a.category === "liability").map((a) => (
+          <div key={a.code} className="flex items-center justify-between px-4 py-2 border-t" style={{ borderColor: "var(--border-subtle)" }}>
+            <span className="text-sm">{a.name}</span>
+            <input
+              type="number"
+              value={getBalance(a.code) || ""}
+              onChange={(e) => setBalance(a.code, parseInt(e.target.value) || 0)}
+              onFocus={(e) => e.target.select()}
+              placeholder="0"
+              className="w-32 px-2 py-1 text-right text-sm rounded"
+              style={{ background: "var(--bg-base)", border: "1px solid var(--border-default)" }}
+            />
+          </div>
+        ))}
+        <div className="flex items-center justify-between px-4 py-2 border-t font-semibold" style={{ borderColor: "var(--border-default)", background: "var(--bg-base)" }}>
+          <span className="text-sm">負債合計</span>
+          <span className="text-sm tabular">¥{totalLiabilities.toLocaleString()}</span>
+        </div>
+      </div>
+
+      <div className="rounded-lg p-4" style={{ background: "rgba(52, 211, 153, 0.1)" }}>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold">元入金（自動計算）</span>
+          <span className="text-base font-bold tabular" style={{ color: "#34d399" }}>¥{ownerCapital.toLocaleString()}</span>
+        </div>
+        <p className="text-[11px] text-[var(--text-tertiary)] mt-2">
+          資産合計 - 負債合計 = 元入金。これがB/Sの純資産（期首）として計上されます。
+        </p>
       </div>
     </div>
   );

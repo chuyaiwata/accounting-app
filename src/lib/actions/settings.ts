@@ -8,6 +8,7 @@ import {
 import type { AppSettings } from "@/lib/types";
 import { DEFAULT_SETTINGS } from "@/lib/data/defaultSettings";
 import { revalidatePath } from "next/cache";
+import { migrateAccountCode } from "../utils/accountCodeMigration";
 
 const SETTINGS_FILE = "settings.json";
 
@@ -45,23 +46,49 @@ export async function loadSettings(): Promise<AppSettings> {
     if (!text.trim()) return DEFAULT_SETTINGS;
 
     const parsed = JSON.parse(text) as AppSettings;
+
+    // 旧勘定科目コード → 新コード自動マイグレーション
+    // apportionRules は同じaccountCodeの重複を防ぐため、変換後に統合
+    const migratedRules = (parsed.apportionRules || []).map((r) => ({
+      ...r,
+      accountCode: migrateAccountCode(r.accountCode) || r.accountCode,
+    }));
+    // 重複統合(同じ新コードが複数出た場合は最初のものを採用)
+    const seenRuleCodes = new Set<string>();
+    const dedupedRules = migratedRules.filter((r) => {
+      if (seenRuleCodes.has(r.accountCode)) return false;
+      seenRuleCodes.add(r.accountCode);
+      return true;
+    });
+
+    const migratedWhitelist = (parsed.gmailWhitelist || []).map((w) => ({
+      ...w,
+      defaultAccountCode: migrateAccountCode(w.defaultAccountCode) || w.defaultAccountCode,
+    }));
+
+    const migratedOpenings = (parsed.openingBalances || []).map((o) => ({
+      ...o,
+      accountCode: migrateAccountCode(o.accountCode) || o.accountCode,
+    }));
+
     return {
       businessTags:
         parsed.businessTags && parsed.businessTags.length > 0
           ? parsed.businessTags
           : DEFAULT_SETTINGS.businessTags,
-      apportionRules: parsed.apportionRules || [],
+      apportionRules: dedupedRules,
       accounts:
         parsed.accounts && parsed.accounts.length > 0
           ? parsed.accounts
           : DEFAULT_SETTINGS.accounts,
       gmailWhitelist:
-        parsed.gmailWhitelist && parsed.gmailWhitelist.length > 0
-          ? parsed.gmailWhitelist
+        migratedWhitelist.length > 0
+          ? migratedWhitelist
           : DEFAULT_SETTINGS.gmailWhitelist,
       bankAccount: parsed.bankAccount || DEFAULT_SETTINGS.bankAccount,
       companyInfo: parsed.companyInfo || DEFAULT_SETTINGS.companyInfo,
       gmailAccounts: parsed.gmailAccounts || [],
+      openingBalances: migratedOpenings,
       updatedAt: parsed.updatedAt || DEFAULT_SETTINGS.updatedAt,
     };
   } catch (e) {

@@ -213,7 +213,7 @@ export async function parseSuicaScreenshot(
           amount: tx.amount,
           type: "expense",
           category: "private_drawing",
-          accountCode: "524",
+          accountCode: "transportation",
           tagIds: [],
           paymentMethod: "Suica",
           note: undefined,

@@ -284,6 +284,29 @@ export async function getBalanceSheet(fiscalYear: number = 2026): Promise<BSData
   const equity = ledgers
     .filter((l) => l.category === "equity" && l.closingBalance !== 0)
     .map((l) => ({ account: l.accountCode, name: l.accountName, amount: l.closingBalance }));
+
+  // 元入金を期首残高から算出: 資産期首合計 − 負債期首合計
+  const settings = await loadSettings();
+  const openings = (settings.openingBalances || []).filter((o) => o.fiscalYear === fiscalYear);
+  let openingAssets = 0;
+  let openingLiabilities = 0;
+  for (const o of openings) {
+    const acc = getAccountByCode(o.accountCode);
+    if (!acc) continue;
+    if (acc.category === "asset") openingAssets += o.amount;
+    else if (acc.category === "liability") openingLiabilities += o.amount;
+  }
+  const openingCapital = openingAssets - openingLiabilities;
+
+  if (openingCapital !== 0) {
+    const existing = equity.find((e) => e.account === "owner_capital");
+    if (existing) {
+      existing.amount += openingCapital;
+    } else {
+      equity.push({ account: "owner_capital", name: "元入金", amount: openingCapital });
+    }
+  }
+
   const totalEquity = equity.reduce((s, r) => s + r.amount, 0);
 
   // 当期純利益 = 収益 - 費用
